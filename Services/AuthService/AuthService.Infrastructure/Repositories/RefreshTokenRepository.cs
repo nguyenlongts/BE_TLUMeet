@@ -31,7 +31,7 @@ namespace AuthService.Infrastructure.Repositories
             {
                 token.RevokeAt = DateTime.UtcNow;
             }
-            await _context.SaveChangesAsync();
+
             return true;
         }
 
@@ -43,7 +43,7 @@ namespace AuthService.Infrastructure.Repositories
                 return false;
             }
             result.RevokeAt = DateTime.UtcNow;
-            await _context.SaveChangesAsync();
+
 
             return true;
         }
@@ -52,7 +52,7 @@ namespace AuthService.Infrastructure.Repositories
         {
             await _context.RefreshTokens.AddAsync(refreshToken);
 
-            await _context.SaveChangesAsync();
+
         }
     }
 }

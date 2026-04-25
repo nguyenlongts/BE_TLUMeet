@@ -84,4 +84,17 @@
         _context.Guests.Add(guest);
         await _context.SaveChangesAsync();
     }
+
+    public async Task AddInviteAsync(MeetingInvite invite)
+    {
+        _context.Invites.Add(invite);
+    }
+
+    public async Task<MeetingInvite?> GetInviteByIdAsync(int id)
+        => await _context.Invites.FirstOrDefaultAsync(i => i.Id == id);
+
+    public async Task UpdateInviteAsync(MeetingInvite invite)
+    {
+        _context.Invites.Update(invite);
+    }
 }

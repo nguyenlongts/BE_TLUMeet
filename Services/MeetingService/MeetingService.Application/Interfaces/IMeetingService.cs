@@ -15,9 +15,12 @@ public interface IMeetingService
     Task<ApiResponse<MeetingStatusDto>> GetMeetingStatusAsync(string roomCode);
     Task<ApiResponse<bool>> StartMeetingAsync(string roomCode, string hostEmail);
     Task<ApiResponse<bool>> EndMeetingAsync(string roomCode, string hostEmail);
-
+    Task<ApiResponse<bool>> InviteAsync(string roomCode, string hostEmail, List<string> emails);
     Task<ApiResponse<MeetingParticipantResponse>> JoinMeetingAsync(string roomCode, string? userEmail, string? guestName);
     Task<ApiResponse<bool>> LeaveMeetingAsync(string joinToken);
     Task<ApiResponse<List<MeetingParticipantResponse>>> GetParticipantsAsync(string roomCode);
     Task<ApiResponse<MeetingParticipantResponse>> GetParticipantByTokenAsync(string joinToken);
+
+    Task<ApiResponse<bool>> RespondInviteAsync(int inviteId, string inviteeEmail, string status);
+
 }

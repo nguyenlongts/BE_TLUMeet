@@ -44,7 +44,7 @@ namespace AuthService.Infrastructure.BackgroundAction
             using var scoped = _serviceFactory.CreateScope();
             var context = scoped.ServiceProvider.GetRequiredService<AuthDbContext>();
             var producer = scoped.ServiceProvider.GetRequiredService<IKafkaProducer>();
-            var messages = await context.OutboxMessages.Where(m=>m.OccuredAt == null).Take(20).OrderBy(m => m.CreatedAt).ToListAsync();
+            var messages = await context.OutboxMessages.Where(m=>m.OccuredAt == null).OrderBy(m => m.CreatedAt).Take(20).ToListAsync();
             foreach (var message in messages)
             {
                 try

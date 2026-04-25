@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/APIGateway/">
+    <Project Path="APIGateway/APIGateway/APIGateway.csproj" />
+  </Folder>
+  <Folder Name="/Services/" />
+  <Folder Name="/Services/AuthService/">
+    <Project Path="Services/AuthService/AuthService.API/AuthService.API.csproj" />
+    <Project Path="Services/AuthService/AuthService.Application/AuthService.Application.csproj" />
+    <Project Path="Services/AuthService/AuthService.Domain/AuthService.Domain.csproj" />
+    <Project Path="Services/AuthService/AuthService.Infrastructure/AuthService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/Services/MeetingService/">
+    <Project Path="Services/MeetingService/MeetingService.API/MeetingService.API.csproj" />
+    <Project Path="Services/MeetingService/MeetingService.Application/MeetingService.Application.csproj" />
+    <Project Path="Services/MeetingService/MeetingService.Domain/MeetingService.Domain.csproj" />
+    <Project Path="Services/MeetingService/MeetingService.Infrastructure/MeetingService.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/Services/NotificationService/">
+    <Project Path="Services/NotificationService/NotificationService.API/NotificationService.API.csproj" />
+  </Folder>
+</Solution>

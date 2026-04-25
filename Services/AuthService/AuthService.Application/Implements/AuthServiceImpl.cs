@@ -17,162 +17,154 @@ namespace AuthService.Application.Services.Implements;
 
 public class AuthServiceImpl : IAuthService
 {
-    private readonly IUserRepository _userRepository;
-    private readonly IRefreshTokenRepository _refreshTokenRepository;
+    private readonly IUnitOfWork _unitOfWork;
+
     private readonly IConfiguration _configuration;
-    private readonly IKafkaProducer _kafkaProducer;
-    private readonly AuthDbContext _context;
     private readonly ILogger<AuthServiceImpl> _logger;
-    public AuthServiceImpl(IUserRepository userRepository, IConfiguration configuration, IKafkaProducer kafkaProducer, ILogger<AuthServiceImpl> logger, IRefreshTokenRepository refreshTokenRepository, AuthDbContext context)
+    public AuthServiceImpl(IConfiguration configuration, ILogger<AuthServiceImpl> logger, IUnitOfWork uow)
     {
-        _userRepository = userRepository;
+
         _configuration = configuration;
-        _kafkaProducer = kafkaProducer;
         _logger = logger;
-        _refreshTokenRepository = refreshTokenRepository;
-        _context = context;
+        _unitOfWork = uow;
     }
 
     public async Task<ApiResponse<AuthResponse>> RegisterAsync(RegisterRequest request)
     {
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Tên không được để trống");
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Email không được để trống");
+
+        if (!IsValidEmail(request.Email))
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Email không hợp lệ");
+
+        if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Mật khẩu phải có ít nhất 6 ký tự");
+
+        var existingUser = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+        if (existingUser != null)
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Email đã được sử dụng");
+
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
+        var user = new User
+        {
+            UserName = request.Name,
+            Email = request.Email.ToLower(),
+            PasswordHash = passwordHash,
+            CreatedAt = DateTime.UtcNow,
+            IsActive = true
+        };
+
+
         try
         {
-            if (string.IsNullOrWhiteSpace(request.Name))
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Tên không được để trống");
+            await _unitOfWork.BeginTransactionAsync();
+            var createdUser = await _unitOfWork.Users.CreateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
 
-            if (string.IsNullOrWhiteSpace(request.Email))
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Email không được để trống");
-
-            if (!IsValidEmail(request.Email))
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Email không hợp lệ");
-
-            if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 6)
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Mật khẩu phải có ít nhất 6 ký tự");
-
-            var existingUser = await _userRepository.GetByEmailAsync(request.Email);
-            if (existingUser != null)
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Email đã được sử dụng");
-
-            var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-
-            var user = new User
+            var refreshToken = CreateNewRefreshToken(user.Id);
+            await _unitOfWork.RefreshTokens.SaveAsync(refreshToken);
+            var outboxMessage = new OutboxMessage
             {
-                UserName = request.Name,
-                Email = request.Email.ToLower(),
-                PasswordHash = passwordHash,
-                CreatedAt = DateTime.UtcNow,
-                IsActive = true
-            };
-           
-            await using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                var createdUser = await _userRepository.CreateAsync(user);
-
-                var refreshToken = CreateNewRefreshToken(user.Id);
-                await _context.RefreshTokens.AddAsync(refreshToken);
-                var outboxMessage = new OutboxMessage
+                EventType = nameof(UserRegisteredEvent),
+                Payload = JsonSerializer.Serialize(new UserRegisteredEvent
                 {
-                    EventType = nameof(UserRegisteredEvent),
-                    Payload = JsonSerializer.Serialize(new UserRegisteredEvent
-                    {
-                        UserId = createdUser.Id,
-                        Email = createdUser.Email,
-                        UserName = createdUser.UserName,
-                        RegisteredAt = DateTime.UtcNow,
-                    }),
-                    CreatedAt = DateTime.UtcNow,
-                    ErrorMessage = null
-                };
-                
-                await _context.OutboxMessages.AddAsync(outboxMessage);
-                await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
-                var accessToken = GenerateJwtToken(createdUser);
-
-                var response = new AuthResponse
-                {
-                    Id = createdUser.Id,
-                    Name = createdUser.UserName,
+                    UserId = createdUser.Id,
                     Email = createdUser.Email,
-                    Token = accessToken,
-                    RefreshToken = refreshToken.Token.ToString()
-                };
-                return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng ký thành công");
-            }
-            catch (Exception ex)
+                    UserName = createdUser.UserName,
+                    RegisteredAt = DateTime.UtcNow,
+                }),
+                CreatedAt = DateTime.UtcNow,
+                ErrorMessage = null
+            };
+
+            await _unitOfWork.OutboxMessages.AddAsync(outboxMessage);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+            var accessToken = GenerateJwtToken(createdUser);
+
+            var response = new AuthResponse
             {
-                await transaction.RollbackAsync();
-                _logger.LogError(ex, "Lỗi transaction RegisterAsync");
-                return ApiResponse<AuthResponse>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
-            }
+                Id = createdUser.Id,
+                Name = createdUser.UserName,
+                Email = createdUser.Email,
+                Token = accessToken,
+                RefreshToken = refreshToken.Token.ToString()
+            };
+            return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng ký thành công");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error RegisterAsync");
+            await _unitOfWork.RollbackAsync();
+            _logger.LogError(ex, "Lỗi transaction RegisterAsync");
             return ApiResponse<AuthResponse>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
+
+
     }
 
     public async Task<ApiResponse<AuthResponse>> LoginAsync(LoginRequest request)
     {
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Email không được để trống");
+
+        if (string.IsNullOrWhiteSpace(request.Password))
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Mật khẩu không được để trống");
+
+        var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLower());
+        if (user == null)
+            return ApiResponse<AuthResponse>.ErrorResponse(401, "Email hoặc mật khẩu không chính xác");
+
+        var isLocked = await _unitOfWork.Users.IsAccountLockedAsync(user);
+        if (isLocked)
+        {
+            if (!user.IsActive)
+                return ApiResponse<AuthResponse>.ErrorResponse(403, "Tài khoản đã bị vô hiệu hóa");
+
+            if (user.LoginInfo?.AccountLockedUntil.HasValue == true)
+            {
+                var remainingMinutes = (int)Math.Ceiling(
+                    (user.LoginInfo.AccountLockedUntil.Value - DateTime.UtcNow).TotalMinutes);
+                return ApiResponse<AuthResponse>.ErrorResponse(403,
+                    $"Tài khoản bị khóa. Thử lại sau {remainingMinutes} phút");
+            }
+        }
+
+        var isValidPassword = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+        if (!isValidPassword)
+        {
+            await _unitOfWork.Users.IncrementFailedLoginAttemptsAsync(user);
+
+            var isLockedAfterFail = await _unitOfWork.Users.IsAccountLockedAsync(user);
+            if (isLockedAfterFail)
+            {
+                return ApiResponse<AuthResponse>.ErrorResponse(403,
+                    "Tài khoản đã bị khóa do đăng nhập sai quá nhiều lần");
+            }
+
+            return ApiResponse<AuthResponse>.ErrorResponse(401, "Email hoặc mật khẩu không chính xác");
+        }
+        var refreshTokenExpDays = int.Parse(_configuration["Jwt:RefreshTokenExpiration"] ?? "7");
+
+        var refreshToken = Guid.NewGuid();
         try
         {
-            if (string.IsNullOrWhiteSpace(request.Email))
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Email không được để trống");
-
-            if (string.IsNullOrWhiteSpace(request.Password))
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Mật khẩu không được để trống");
-
-            var user = await _userRepository.GetByEmailAsync(request.Email.ToLower());
-            if (user == null)
-                return ApiResponse<AuthResponse>.ErrorResponse(401, "Email hoặc mật khẩu không chính xác");
-
-            var isLocked = await _userRepository.IsAccountLockedAsync(user);
-            if (isLocked)
-            {
-                if (!user.IsActive)
-                    return ApiResponse<AuthResponse>.ErrorResponse(403, "Tài khoản đã bị vô hiệu hóa");
-
-                if (user.LoginInfo?.AccountLockedUntil.HasValue == true)
-                {
-                    var remainingMinutes = (int)Math.Ceiling(
-                        (user.LoginInfo.AccountLockedUntil.Value - DateTime.UtcNow).TotalMinutes);
-                    return ApiResponse<AuthResponse>.ErrorResponse(403,
-                        $"Tài khoản bị khóa. Thử lại sau {remainingMinutes} phút");
-                }
-            }
-
-            var isValidPassword = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
-            if (!isValidPassword)
-            {
-                await _userRepository.IncrementFailedLoginAttemptsAsync(user);
-
-                var isLockedAfterFail = await _userRepository.IsAccountLockedAsync(user);
-                if (isLockedAfterFail)
-                {
-                    return ApiResponse<AuthResponse>.ErrorResponse(403,
-                        "Tài khoản đã bị khóa do đăng nhập sai quá nhiều lần");
-                }
-
-                return ApiResponse<AuthResponse>.ErrorResponse(401, "Email hoặc mật khẩu không chính xác");
-            }
-
+            await _unitOfWork.BeginTransactionAsync();
             if (user.LoginInfo != null)
             {
                 user.LoginInfo.FailedLoginAttempts = 0;
                 user.LoginInfo.AccountLockedUntil = null;
                 user.LoginInfo.LastLogin = DateTime.UtcNow;
-                await _userRepository.UpdateAsync(user);
+                await _unitOfWork.Users.UpdateAsync(user);
             }
+            await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(user.Id);
 
-            var token = GenerateJwtToken(user);
-
-            var refreshToken = Guid.NewGuid();
-            await _refreshTokenRepository.RevokeAllByUserIdAsync(user.Id);
-            var refreshTokenExpDays = int.Parse(_configuration["Jwt:RefreshTokenExpiration"] ?? "7");
-
-            await _refreshTokenRepository.SaveAsync(new RefreshToken
+            await _unitOfWork.RefreshTokens.SaveAsync(new RefreshToken
             {
                 UserId = user.Id,
                 Token = refreshToken,
@@ -180,162 +172,188 @@ public class AuthServiceImpl : IAuthService
                 CreatedAt = DateTime.UtcNow,
                 RevokeAt = null
             });
-            var response = new AuthResponse
-            {
-                Id = user.Id,
-                Name = user.UserName,
-                Email = user.Email,
-                Token = token,
-                RefreshToken = refreshToken.ToString()
-            };
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
 
-            return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng nhập thành công");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi login");
+            await _unitOfWork.RollbackAsync();
+            _logger.LogError(ex, "Lỗi transaction Login");
             return ApiResponse<AuthResponse>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
+        var token = GenerateJwtToken(user);
+
+        var response = new AuthResponse
+        {
+            Id = user.Id,
+            Name = user.UserName,
+            Email = user.Email,
+            Token = token,
+            RefreshToken = refreshToken.ToString()
+        };
+
+        return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng nhập thành công");
+
     }
 
     public async Task<ApiResponse<bool>> ChangePasswordAsync(string userEmail, ChangePasswordRequest request)
     {
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword))
+            return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu hiện tại không được để trống");
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+            return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu mới phải có ít nhất 6 ký tự");
+        if (request.CurrentPassword == request.NewPassword)
+            return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu mới không được trùng mật khẩu cũ");
+        var user = await _unitOfWork.Users.GetByEmailAsync(userEmail);
+        if (user == null)
+            return ApiResponse<bool>.ErrorResponse(404, "Người dùng không tồn tại");
+
+        var isValid = BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash);
+        if (!isValid)
+            return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu hiện tại không đúng");
+
         try
         {
-            if (string.IsNullOrWhiteSpace(request.CurrentPassword))
-                return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu hiện tại không được để trống");
-
-            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-                return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu mới phải có ít nhất 6 ký tự");
-
-            var user = await _userRepository.GetByEmailAsync(userEmail);
-            if (user == null)
-                return ApiResponse<bool>.ErrorResponse(404, "Người dùng không tồn tại");
-
-            var isValid = BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash);
-            if (!isValid)
-                return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu hiện tại không đúng");
-            if (request.CurrentPassword == request.NewPassword)
-                return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu mới không được trùng mật khẩu cũ");
+            await _unitOfWork.BeginTransactionAsync();
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
             user.UpdatedAt = DateTime.UtcNow;
 
-            await _userRepository.UpdateAsync(user);
-            await _refreshTokenRepository.RevokeAllByUserIdAsync(user.Id);
-
-            return ApiResponse<bool>.SuccessResponse(true, "Đổi mật khẩu thành công");
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(user.Id);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi Change password");
+            _logger.LogError(ex, "Lỗi transaction Change Password");
+            await _unitOfWork.RollbackAsync();
             return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
+
+        return ApiResponse<bool>.SuccessResponse(true, "Đổi mật khẩu thành công");
+
     }
 
     public async Task<ApiResponse<bool>> ForgotPasswordAsync(ForgotPasswordRequest request)
     {
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return ApiResponse<bool>.ErrorResponse(400, "Email không được để trống");
+
+        var user = await _unitOfWork.Users.GetByEmailAsync(request.Email);
+        if (user == null)
+            return ApiResponse<bool>.SuccessResponse(true, "Nếu email tồn tại, link reset đã được gửi");
+
+        var resetToken = GenerateResetPasswordToken(user);
+        var now = DateTime.UtcNow;
+        var expiresAt = now.AddMinutes(15);
+        var passwordResetEvent = new PasswordResetRequestedEvent
+        {
+            Email = request.Email,
+            ResetToken = resetToken,
+            RequestedAt = now,
+            ExpiresAt = expiresAt
+        };
+
         try
         {
-            if (string.IsNullOrWhiteSpace(request.Email))
-                return ApiResponse<bool>.ErrorResponse(400, "Email không được để trống");
+            await _unitOfWork.BeginTransactionAsync();
+            await _unitOfWork.Users.DeleteUnusedResetTokensAsync(user.Id);
 
-            var user = await _userRepository.GetByEmailAsync(request.Email);
-            if (user == null)
-                return ApiResponse<bool>.SuccessResponse(true, "Nếu email tồn tại, link reset đã được gửi");
-            await _userRepository.DeleteUnusedResetTokensAsync(user.Id);
-
-            var resetToken = GenerateResetPasswordToken(user);
-
-            var passwordResetEvent = new PasswordResetRequestedEvent
-            {
-                Email = request.Email,
-                ResetToken = resetToken,
-                RequestedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(15)
-            };
-
-            try
-            {
-                await _kafkaProducer.PublishAsync(KafkaTopics.PasswordResetRequested, passwordResetEvent);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to publish PasswordReset event for {Email}", request.Email);
-                return ApiResponse<bool>.ErrorResponse(503, "Không thể gửi email lúc này, vui lòng thử lại sau");
-            }
-            await _userRepository.SaveResetTokenAsync(new PasswordResetToken
+            await _unitOfWork.Users.SaveResetTokenAsync(new PasswordResetToken
             {
                 UserId = user.Id,
                 Token = resetToken,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(15)
+                ExpiresAt = expiresAt
             });
-            await _userRepository.ResetFailedLoginAttemptsAsync(user);
-
-            return ApiResponse<bool>.SuccessResponse(true, "Đã gửi email đặt lại mật khẩu");
+            var outboxMessage = new OutboxMessage
+            {
+                EventType = nameof(PasswordResetRequestedEvent),
+                Payload = JsonSerializer.Serialize(passwordResetEvent),
+                CreatedAt = now,
+                ErrorMessage = null
+            };
+            await _unitOfWork.OutboxMessages.AddAsync(outboxMessage);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Lỗi Forgot Password");
-
+            _logger.LogError(ex, "Lỗi transaction ForgotPasswordAsync");
+            await _unitOfWork.RollbackAsync();
             return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
+        return ApiResponse<bool>.SuccessResponse(true, "Đã gửi email đặt lại mật khẩu");
+
     }
 
     public async Task<ApiResponse<bool>> ResetPasswordAsync(ResetPasswordRequest request)
     {
+
+        if (string.IsNullOrWhiteSpace(request.Token))
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
+
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
+            return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu mới tối thiểu 6 ký tự");
+
+        var handler = new JwtSecurityTokenHandler();
+        JwtSecurityToken jwt;
+
         try
         {
-            if (string.IsNullOrWhiteSpace(request.Token))
-                return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
-
-            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 6)
-                return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu mới tối thiểu 6 ký tự");
-
-            var handler = new JwtSecurityTokenHandler();
-            JwtSecurityToken jwt;
-
-            try
+            var validationParams = new TokenValidationParameters
             {
-                var validationParams = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)),
-                    ValidateIssuer = false,
-                    ValidateAudience = false,
-                    ValidateLifetime = true
-                };
-                handler.ValidateToken(request.Token, validationParams, out var validatedToken);
-                jwt = (JwtSecurityToken)validatedToken;
-            }
-            catch
-            {
-                return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
-            }
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)),
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true
+            };
+            handler.ValidateToken(request.Token, validationParams, out var validatedToken);
+            jwt = (JwtSecurityToken)validatedToken;
+        }
+        catch
+        {
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
+        }
 
-            var type = jwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
-            if (type != "reset-password")
-                return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
-            var savedToken = await _userRepository.GetResetTokenAsync(request.Token);
-            if (savedToken == null || savedToken.IsUsed || savedToken.ExpiresAt < DateTime.UtcNow)
-                return ApiResponse<bool>.ErrorResponse(400, "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
-            var userEmail = jwt.Claims.First(c => c.Type == "email").Value;
-            var user = await _userRepository.GetByEmailAsync(userEmail);
+        var type = jwt.Claims.FirstOrDefault(c => c.Type == "type")?.Value;
+        if (type != "reset-password")
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
+        var savedToken = await _unitOfWork.Users.GetResetTokenAsync(request.Token);
+        if (savedToken == null || savedToken.IsUsed || savedToken.ExpiresAt < DateTime.UtcNow)
+            return ApiResponse<bool>.ErrorResponse(400, "Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn");
+        var userEmail = jwt.Claims.First(c => c.Type == "email").Value;
+        var user = await _unitOfWork.Users.GetByEmailAsync(userEmail);
 
-            if (user == null)
-                return ApiResponse<bool>.ErrorResponse(404, "Người dùng không tồn tại");
+        if (user == null)
+            return ApiResponse<bool>.ErrorResponse(404, "Người dùng không tồn tại");
 
+
+        try
+        {
+            await _unitOfWork.BeginTransactionAsync();
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
             user.UpdatedAt = DateTime.UtcNow;
             savedToken.IsUsed = true;
-            await _userRepository.UpdateResetTokenAsync(savedToken);
-            await _userRepository.UpdateAsync(user);
+            await _unitOfWork.Users.ResetFailedLoginAttemptsAsync(user);
 
-            return ApiResponse<bool>.SuccessResponse(true, "Đặt lại mật khẩu thành công");
+            await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(user.Id);
+            await _unitOfWork.Users.UpdateResetTokenAsync(savedToken);
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Lỗi transaction Reset Password");
+            await _unitOfWork.RollbackAsync();
             return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
+        return ApiResponse<bool>.SuccessResponse(true, "Đặt lại mật khẩu thành công");
     }
 
     private string GenerateJwtToken(User user)
@@ -401,15 +419,20 @@ public class AuthServiceImpl : IAuthService
 
     public async Task<ApiResponse<AuthResponse>> RefreshTokenAsync(string refreshToken)
     {
+        var existingToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(refreshToken);
+        if (existingToken == null || existingToken.ExpiredAt < DateTime.UtcNow || existingToken.RevokeAt != null)
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Refresh token không hợp lệ hoặc đã hết hạn");
+        var user = await _unitOfWork.Users.GetByIdAsync(existingToken.UserId);
+        if (user == null)
+            return ApiResponse<AuthResponse>.ErrorResponse(401, "Người dùng không tồn tại");
         try
         {
-            var existingToken = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
-            if (existingToken == null || existingToken.ExpiredAt < DateTime.UtcNow || existingToken.RevokeAt != null)
-                return ApiResponse<AuthResponse>.ErrorResponse(400, "Refresh token không hợp lệ hoặc đã hết hạn");
-            var user = await _userRepository.GetByIdAsync(existingToken.UserId);
-            await _refreshTokenRepository.RevokeAsync(existingToken.Token.ToString());
+            await _unitOfWork.BeginTransactionAsync();
+            await _unitOfWork.RefreshTokens.RevokeAsync(existingToken.Token.ToString());
             var newRefreshToken = CreateNewRefreshToken(existingToken.UserId);
-            await _refreshTokenRepository.SaveAsync(newRefreshToken);
+            await _unitOfWork.RefreshTokens.SaveAsync(newRefreshToken);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
             var accessToken = GenerateJwtToken(user);
             var response = new AuthResponse
             {
@@ -423,6 +446,7 @@ public class AuthServiceImpl : IAuthService
         }
         catch (Exception ex)
         {
+            await _unitOfWork.RollbackAsync();
             _logger.LogError(ex, "Lỗi Refresh Token");
             return ApiResponse<AuthResponse>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
@@ -445,10 +469,11 @@ public class AuthServiceImpl : IAuthService
     {
         try
         {
-            var existToken = await _refreshTokenRepository.GetByTokenAsync(refreshToken);
+            var existToken = await _unitOfWork.RefreshTokens.GetByTokenAsync(refreshToken);
             if (existToken != null && existToken.RevokeAt == null)
             {
-                await _refreshTokenRepository.RevokeAsync(existToken.Token.ToString());
+                await _unitOfWork.RefreshTokens.RevokeAsync(existToken.Token.ToString());
+                await _unitOfWork.SaveChangesAsync();
 
             }
             return ApiResponse<bool>.SuccessResponse(true, "Đăng xuất thành công");

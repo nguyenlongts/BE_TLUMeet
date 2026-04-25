@@ -9,6 +9,7 @@ public class MeetingDbContext : DbContext
     public DbSet<Guest> Guests { get; set; } = null!;
     public DbSet<Role> Roles { get; set; }
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public DbSet<MeetingInvite> Invites { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -37,7 +38,16 @@ public class MeetingDbContext : DbContext
             Name="Guest",
             Description="guest"
         });
-
+        modelBuilder.Entity<MeetingInvite>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.InviteeEmail).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.InvitedBy).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(20);
+            entity.HasOne(e => e.Meeting)
+                  .WithMany()
+                  .HasForeignKey(e => e.MeetingId);
+        });
 
     }
 }

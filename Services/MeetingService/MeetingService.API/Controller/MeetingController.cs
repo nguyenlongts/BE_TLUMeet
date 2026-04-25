@@ -153,5 +153,39 @@ public class MeetingController : ControllerBase
 
         return Ok(result);
     }
+
+    [Authorize]
+    [HttpPost("{roomCode}/invite")]
+    public async Task<IActionResult> Invite(string roomCode, [FromBody] InviteRequest request)
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email))
+            return Unauthorized();
+
+        if (request.InviteeEmails == null || !request.InviteeEmails.Any())
+            return BadRequest("Danh sách email rỗng");
+
+        var result = await _meetingService.InviteAsync(roomCode, email, request.InviteeEmails);
+
+        if (!result.Success)
+            return StatusCode(result.StatusCode, result);
+
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpPost("invite/{inviteId}/respond")]
+    public async Task<IActionResult> RespondInvite(int inviteId, [FromBody] InviteRespondRequest request)
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email))
+            return Unauthorized();
+
+        var result = await _meetingService.RespondInviteAsync(inviteId, email, request.Status);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, result);
+
+        return Ok(result);
+    }
 }
 

@@ -16,10 +16,9 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<MeetingDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-builder.Services.AddScoped<IMeetingRepository, MeetingRepository>();
-
-builder.Services.AddScoped<IMeetingService, MeetingService.Application.Services.MeetingService>();
-
+builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+builder.Services.AddScoped<IMeetingService, MeetingService.Application.Implement.MeetingService>();
+builder.Services.AddHostedService<OutboxService>();
 builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
 builder.Services.AddCors(options =>

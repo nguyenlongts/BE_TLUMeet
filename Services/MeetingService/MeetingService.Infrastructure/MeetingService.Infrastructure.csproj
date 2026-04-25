@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <ProjectReference Include="..\MeetingService.Application\MeetingService.Application.csproj" />
     <ProjectReference Include="..\MeetingService.Domain\MeetingService.Domain.csproj" />
   </ItemGroup>
 

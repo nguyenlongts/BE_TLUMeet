@@ -5,17 +5,16 @@ namespace NotificationService.API.Consumers;
 
 public class PasswordResetConsumer : KafkaConsumerBase<PasswordResetEvent>
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceProvider _serviceProvider; 
+    private readonly IConfiguration _configuration;
+
 
     protected override string Topic => "password-reset-events";
     protected override string GroupId => "notification-service-password-reset";
 
-    public PasswordResetConsumer(
-        IConfiguration configuration,
-        ILogger<PasswordResetConsumer> logger,
-        IServiceProvider serviceProvider)
-        : base(configuration, logger)
+    public PasswordResetConsumer(IConfiguration configuration,ILogger<PasswordResetConsumer> logger,IServiceProvider serviceProvider): base(configuration, logger)
     {
+        _configuration = configuration;
         _serviceProvider = serviceProvider;
     }
 
@@ -23,8 +22,9 @@ public class PasswordResetConsumer : KafkaConsumerBase<PasswordResetEvent>
     {
         using var scope = _serviceProvider.CreateScope();
         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+        var fe = _configuration["FE:BaseUrl"];
 
-        var resetLink = $"http://localhost:5173/reset-password?token={message.ResetToken}";
+        var resetLink = $"{fe}/reset-password?token={message.ResetToken}";
 
         var emailBody = $@"
             <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>

@@ -1,8 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.IdentityModel.Tokens" Version="7.1.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\MeetingService.Domain\MeetingService.Domain.csproj" />
-	<ProjectReference Include="..\MeetingService.Infrastructure\MeetingService.Infrastructure.csproj" />
 
   </ItemGroup>
 

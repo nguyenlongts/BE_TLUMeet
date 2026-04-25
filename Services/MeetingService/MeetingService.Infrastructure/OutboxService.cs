@@ -1,5 +1,6 @@
 ﻿
 
+
 namespace MeetingService.Infrastructure
 {
     public class OutboxService : BackgroundService
@@ -64,6 +65,14 @@ namespace MeetingService.Infrastructure
                         case nameof(ParticipantLeftEvent):
                             var participantLeftEvent = System.Text.Json.JsonSerializer.Deserialize<ParticipantLeftEvent>(message.Payload);
                             await producer.PublishAsync(KafkaTopics.ParticipantLeft, participantLeftEvent!);
+                            break;
+                        case nameof(MeetingInvitedEvent):
+                            var meetingInvitedEvent = System.Text.Json.JsonSerializer.Deserialize<MeetingInvitedEvent>(message.Payload);
+                            await producer.PublishAsync(KafkaTopics.MeetingInvited, meetingInvitedEvent!);
+                            break;
+                        case nameof(InviteRespondedEvent):
+                            var inviteRespondedEvent = System.Text.Json.JsonSerializer.Deserialize<InviteRespondedEvent>(message.Payload);
+                            await producer.PublishAsync(KafkaTopics.InviteResponded, inviteRespondedEvent!);
                             break;
                     }
                     message.OccuredAt = DateTime.UtcNow;

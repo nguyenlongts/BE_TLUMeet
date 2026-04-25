@@ -30,42 +30,12 @@ Each service follows Clean Architecture:
 
 ## Setup & Run
 
-### 1. Start services (Docker + Kafka)
+### 1. Start services (Services + Kafka)
 
 ```bash
 docker-compose up --build
 ```
 
----
-
-### 2. Database Setup
-
-Each service uses its own database:
-
-* AuthService → AuthDb
-* MeetingService → MeetingDb
-
-Update connection string in each service (`appsettings.json`):
-
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=localhost;Database=AuthDb;Trusted_Connection=True;TrustServerCertificate=True;"
-}
-```
-
----
-
-### 3. Run Migration
-
-```bash
-cd AuthService
-dotnet ef database update
-
-cd MeetingService
-dotnet ef database update
-```
-
----
 
 ## Tech Stack
 

@@ -52,14 +52,12 @@ public class UserRepository : IUserRepository
         user.LoginInfo = new UserLogin();
 
         _context.Users.Add(user);
-        await _context.SaveChangesAsync();
         return await GetByIdAsync(user.Id) ?? user;
     }
 
     public async Task UpdateAsync(User user)
     {
         _context.Users.Update(user);
-        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)
@@ -68,7 +66,6 @@ public class UserRepository : IUserRepository
         if (user != null)
         {
             _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
         }
     }
 
@@ -82,7 +79,6 @@ public class UserRepository : IUserRepository
         {
             user.LoginInfo.AccountLockedUntil = null;
             user.LoginInfo.FailedLoginAttempts = 0;
-            await UpdateAsync(user);
         }
 
         return false;
@@ -96,7 +92,6 @@ public class UserRepository : IUserRepository
         if (user.LoginInfo.FailedLoginAttempts >= 5)
             user.LoginInfo.AccountLockedUntil = DateTime.UtcNow.AddMinutes(15);
 
-        await UpdateAsync(user);
     }
 
     public async Task ResetFailedLoginAttemptsAsync(User user)
@@ -105,13 +100,11 @@ public class UserRepository : IUserRepository
 
         user.LoginInfo.FailedLoginAttempts = 0;
         user.LoginInfo.AccountLockedUntil = null;
-        await UpdateAsync(user);
     }
 
     public async Task SaveResetTokenAsync(PasswordResetToken token)
     {
         _context.PasswordResetTokens.Add(token);
-        await _context.SaveChangesAsync();
     }
 
     public async Task<PasswordResetToken?> GetResetTokenAsync(string token)
@@ -123,7 +116,6 @@ public class UserRepository : IUserRepository
     public async Task UpdateResetTokenAsync(PasswordResetToken token)
     {
         _context.PasswordResetTokens.Update(token);
-        await _context.SaveChangesAsync();
     }
 
     public async Task DeleteUnusedResetTokensAsync(int userId)
@@ -133,26 +125,6 @@ public class UserRepository : IUserRepository
             .ToListAsync();
 
         _context.PasswordResetTokens.RemoveRange(tokens);
-        await _context.SaveChangesAsync();
     }
 
-    public Task SaveRefreshTokenAsync(RefreshToken refreshToken)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task<RefreshToken> GetRefreshTokenAsync(int userId)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task RevokeRefreshTokenAsync(string token)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task RevokeAllRefreshTokensAsync(int userId)
-    {
-        throw new NotImplementedException();
-    }
 }

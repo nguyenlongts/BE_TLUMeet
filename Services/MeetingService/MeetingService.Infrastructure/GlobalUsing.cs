@@ -9,3 +9,4 @@ global using MeetingService.Domain.Interfaces;
 global using MeetingService.Infrastructure;
 global using System.Text.Json;
 global using Microsoft.Extensions.Configuration;
+global using MeetingService.Application.Events;

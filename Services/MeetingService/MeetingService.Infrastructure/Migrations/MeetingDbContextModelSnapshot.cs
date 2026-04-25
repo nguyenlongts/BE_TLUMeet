@@ -91,6 +91,45 @@ namespace MeetingService.Infrastructure.Migrations
                     b.ToTable("Meetings");
                 });
 
+            modelBuilder.Entity("MeetingService.Domain.Models.MeetingInvite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("InvitedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("InviteeEmail")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("MeetingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MeetingId");
+
+                    b.ToTable("Invites");
+                });
+
             modelBuilder.Entity("MeetingService.Domain.Models.MeetingParticipant", b =>
                 {
                     b.Property<int>("Id")
@@ -209,6 +248,17 @@ namespace MeetingService.Infrastructure.Migrations
                             Description = "guest",
                             Name = "Guest"
                         });
+                });
+
+            modelBuilder.Entity("MeetingService.Domain.Models.MeetingInvite", b =>
+                {
+                    b.HasOne("MeetingService.Domain.Models.Meeting", "Meeting")
+                        .WithMany()
+                        .HasForeignKey("MeetingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Meeting");
                 });
 
             modelBuilder.Entity("MeetingService.Domain.Models.MeetingParticipant", b =>

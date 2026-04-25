@@ -12,7 +12,30 @@
         }
       ]
     },
-
+    {
+      "UpstreamPathTemplate": "/hubs/notification/negotiate",
+      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
+      "DownstreamPathTemplate": "/hubs/notification/negotiate",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notiservice",
+          "Port": 8080
+        }
+      ]
+    },
+    {
+      "UpstreamPathTemplate": "/hubs/notification/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "OPTIONS" ],
+      "DownstreamPathTemplate": "/hubs/notification/{everything}",
+      "DownstreamScheme": "ws",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notiservice",
+          "Port": 8080
+        }
+      ]
+    },
     {
       "UpstreamPathTemplate": "/api/meeting/check/{roomCode}",
       "UpstreamHttpMethod": [ "GET", "OPTIONS" ],
@@ -67,12 +90,12 @@
 
     {
       "UpstreamPathTemplate": "/api/notification/{everything}",
-      "UpstreamHttpMethod": [ "GET", "OPTIONS" ],
+      "UpstreamHttpMethod": [ "GET", "PUT", "OPTIONS" ],
       "DownstreamPathTemplate": "/api/notification/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "notificationservice",
+          "Host": "notiservice",
           "Port": 8080
         }
       ]

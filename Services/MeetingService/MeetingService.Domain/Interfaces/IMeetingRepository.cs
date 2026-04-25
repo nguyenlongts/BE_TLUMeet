@@ -19,4 +19,8 @@ public interface IMeetingRepository
     Task UpdateParticipantAsync(MeetingParticipant participant);
 
     Task AddGuestAsync(Guest guest);
+
+    Task AddInviteAsync(MeetingInvite invite);
+    Task<MeetingInvite?> GetInviteByIdAsync(int id);
+    Task UpdateInviteAsync(MeetingInvite invite);
 }
