@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using JitsiBackend.API.Application.Common;
 
 namespace JitsiBackend.API.Controllers
@@ -27,6 +28,7 @@ namespace JitsiBackend.API.Controllers
                 return BadRequest(new { error = ex.Message });
             }
         }
+        [Authorize]
         [HttpPost("generate-token")]
         public IActionResult GenerateToken([FromBody] GenerateTokenRequest request)
         {

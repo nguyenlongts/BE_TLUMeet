@@ -2,7 +2,6 @@
 using MeetingService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace MeetingService.API.Controllers;
 
@@ -92,7 +91,7 @@ public class MeetingController : ControllerBase
     [HttpPost("{roomCode}/start")]
     public async Task<IActionResult> StartMeeting(string roomCode)
     {
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var email = User.FindFirst("email")?.Value;
         if (string.IsNullOrEmpty(email))
             return Unauthorized();
         var result = await _meetingService.StartMeetingAsync(roomCode, email);
@@ -105,7 +104,7 @@ public class MeetingController : ControllerBase
     [HttpPost("{roomCode}/end")]
     public async Task<IActionResult> EndMeeting(string roomCode)
     {
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var email = User.FindFirst("email")?.Value;
         var result = await _meetingService.EndMeetingAsync(roomCode, email);
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
@@ -158,7 +157,7 @@ public class MeetingController : ControllerBase
     [HttpPost("{roomCode}/invite")]
     public async Task<IActionResult> Invite(string roomCode, [FromBody] InviteRequest request)
     {
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var email = User.FindFirst("email")?.Value;
         if (string.IsNullOrEmpty(email))
             return Unauthorized();
 
@@ -177,7 +176,7 @@ public class MeetingController : ControllerBase
     [HttpPost("invite/{inviteId}/respond")]
     public async Task<IActionResult> RespondInvite(int inviteId, [FromBody] InviteRespondRequest request)
     {
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var email = User.FindFirst("email")?.Value;
         if (string.IsNullOrEmpty(email))
             return Unauthorized();
 
@@ -192,7 +191,7 @@ public class MeetingController : ControllerBase
     [HttpGet("invited")]
     public async Task<IActionResult> GetInvitedMeetings()
     {
-        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var email = User.FindFirst("email")?.Value;
         if (string.IsNullOrEmpty(email)) return Unauthorized();
 
         var result = await _meetingService.GetAcceptedInviteMeetingsAsync(email);

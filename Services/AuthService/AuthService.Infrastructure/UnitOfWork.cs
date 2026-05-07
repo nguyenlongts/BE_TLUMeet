@@ -53,6 +53,7 @@ namespace AuthService.Infrastructure
             await _transaction.RollbackAsync();
             await _transaction.DisposeAsync();
             _transaction = null;
+            _context.ChangeTracker.Clear();
         }
         
 

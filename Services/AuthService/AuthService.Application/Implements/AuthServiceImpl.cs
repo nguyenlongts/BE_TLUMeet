@@ -2,31 +2,43 @@
 using AuthService.Application.Interfaces;
 using AuthService.Domain.Interfaces;
 using AuthService.Domain.Models;
-using AuthService.Infrastructure;
 using AuthService.Infrastructure.Messaging;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Security.Claims;
+
 namespace AuthService.Application.Services.Implements;
 
 public class AuthServiceImpl : IAuthService
 {
     private readonly IUnitOfWork _unitOfWork;
-
+    private readonly IAuditLogRepository _auditLog;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AuthServiceImpl> _logger;
-    public AuthServiceImpl(IConfiguration configuration, ILogger<AuthServiceImpl> logger, IUnitOfWork uow)
-    {
 
+    public AuthServiceImpl(
+        IConfiguration configuration,
+        ILogger<AuthServiceImpl> logger,
+        IUnitOfWork uow,
+        IAuditLogRepository auditLog,
+        IHttpContextAccessor httpContextAccessor)
+    {
         _configuration = configuration;
         _logger = logger;
         _unitOfWork = uow;
+        _auditLog = auditLog;
+        _httpContextAccessor = httpContextAccessor;
     }
+
+    private string? GetClientIp() =>
+        _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString();
 
     public async Task<ApiResponse<AuthResponse>> RegisterAsync(RegisterRequest request)
     {
@@ -84,8 +96,19 @@ public class AuthServiceImpl : IAuthService
             await _unitOfWork.OutboxMessages.AddAsync(outboxMessage);
             await _unitOfWork.SaveChangesAsync();
             await _unitOfWork.CommitAsync();
-            var accessToken = GenerateJwtToken(createdUser);
 
+            await _auditLog.LogAsync(new AuditLog
+            {
+                UserId = createdUser.Id,
+                UserEmail = createdUser.Email,
+                Action = "Register",
+                Description = "Đăng ký tài khoản thành công",
+                IpAddress = GetClientIp(),
+                IsSuccess = true,
+                CreatedAt = DateTime.UtcNow
+            });
+
+            var accessToken = GenerateJwtToken(createdUser);
             var response = new AuthResponse
             {
                 Id = createdUser.Id,
@@ -100,6 +123,15 @@ public class AuthServiceImpl : IAuthService
         {
             await _unitOfWork.RollbackAsync();
             _logger.LogError(ex, "Lỗi transaction RegisterAsync");
+            await _auditLog.LogAsync(new AuditLog
+            {
+                UserEmail = request.Email,
+                Action = "Register",
+                Description = "Lỗi server khi đăng ký",
+                IpAddress = GetClientIp(),
+                IsSuccess = false,
+                CreatedAt = DateTime.UtcNow
+            });
             return ApiResponse<AuthResponse>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
 
@@ -138,6 +170,18 @@ public class AuthServiceImpl : IAuthService
             await _unitOfWork.SaveChangesAsync();
 
             var isLockedAfterFail = await _unitOfWork.Users.IsAccountLockedAsync(user);
+
+            await _auditLog.LogAsync(new AuditLog
+            {
+                UserId = user.Id,
+                UserEmail = user.Email,
+                Action = "Login",
+                Description = isLockedAfterFail ? "Tài khoản bị khóa do sai mật khẩu quá nhiều lần" : "Sai mật khẩu",
+                IpAddress = GetClientIp(),
+                IsSuccess = false,
+                CreatedAt = DateTime.UtcNow
+            });
+
             if (isLockedAfterFail)
                 return ApiResponse<AuthResponse>.ErrorResponse(403,
                     "Tài khoản đã bị khóa do đăng nhập sai quá nhiều lần");
@@ -174,11 +218,31 @@ public class AuthServiceImpl : IAuthService
         {
             await _unitOfWork.RollbackAsync();
             _logger.LogError(ex, "Lỗi transaction Login");
+            await _auditLog.LogAsync(new AuditLog
+            {
+                UserId = user.Id,
+                UserEmail = user.Email,
+                Action = "Login",
+                Description = "Lỗi server khi đăng nhập",
+                IpAddress = GetClientIp(),
+                IsSuccess = false,
+                CreatedAt = DateTime.UtcNow
+            });
             return ApiResponse<AuthResponse>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
 
-        var token = GenerateJwtToken(user);
+        await _auditLog.LogAsync(new AuditLog
+        {
+            UserId = user.Id,
+            UserEmail = user.Email,
+            Action = "Login",
+            Description = "Đăng nhập thành công",
+            IpAddress = GetClientIp(),
+            IsSuccess = true,
+            CreatedAt = DateTime.UtcNow
+        });
 
+        var token = GenerateJwtToken(user);
         var response = new AuthResponse
         {
             Id = user.Id,
@@ -211,7 +275,19 @@ public class AuthServiceImpl : IAuthService
 
         var isValid = BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash);
         if (!isValid)
+        {
+            await _auditLog.LogAsync(new AuditLog
+            {
+                UserId = user.Id,
+                UserEmail = user.Email,
+                Action = "ChangePassword",
+                Description = "Sai mật khẩu hiện tại",
+                IpAddress = GetClientIp(),
+                IsSuccess = false,
+                CreatedAt = DateTime.UtcNow
+            });
             return ApiResponse<bool>.ErrorResponse(400, "Mật khẩu hiện tại không đúng");
+        }
 
         try
         {
@@ -228,9 +304,29 @@ public class AuthServiceImpl : IAuthService
         {
             _logger.LogError(ex, "Lỗi transaction Change Password");
             await _unitOfWork.RollbackAsync();
+            await _auditLog.LogAsync(new AuditLog
+            {
+                UserId = user.Id,
+                UserEmail = user.Email,
+                Action = "ChangePassword",
+                Description = "Lỗi server khi đổi mật khẩu",
+                IpAddress = GetClientIp(),
+                IsSuccess = false,
+                CreatedAt = DateTime.UtcNow
+            });
             return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
 
+        await _auditLog.LogAsync(new AuditLog
+        {
+            UserId = user.Id,
+            UserEmail = user.Email,
+            Action = "ChangePassword",
+            Description = "Đổi mật khẩu thành công",
+            IpAddress = GetClientIp(),
+            IsSuccess = true,
+            CreatedAt = DateTime.UtcNow
+        });
         return ApiResponse<bool>.SuccessResponse(true, "Đổi mật khẩu thành công");
 
     }
@@ -370,8 +466,29 @@ public class AuthServiceImpl : IAuthService
         {
             _logger.LogError(ex, "Lỗi transaction Reset Password");
             await _unitOfWork.RollbackAsync();
+            await _auditLog.LogAsync(new AuditLog
+            {
+                UserId = user?.Id,
+                UserEmail = userEmail,
+                Action = "ResetPassword",
+                Description = "Lỗi server khi đặt lại mật khẩu",
+                IpAddress = GetClientIp(),
+                IsSuccess = false,
+                CreatedAt = DateTime.UtcNow
+            });
             return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
+
+        await _auditLog.LogAsync(new AuditLog
+        {
+            UserId = user.Id,
+            UserEmail = user.Email,
+            Action = "ResetPassword",
+            Description = "Đặt lại mật khẩu thành công",
+            IpAddress = GetClientIp(),
+            IsSuccess = true,
+            CreatedAt = DateTime.UtcNow
+        });
         return ApiResponse<bool>.SuccessResponse(true, "Đặt lại mật khẩu thành công");
     }
 
@@ -385,7 +502,7 @@ public class AuthServiceImpl : IAuthService
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-        var claims = new[]
+        var claims = new List<Claim>
         {
             new Claim("userId", user.Id.ToString()),
             new Claim("name", user.UserName),
@@ -504,14 +621,21 @@ public class AuthServiceImpl : IAuthService
             {
                 await _unitOfWork.RefreshTokens.RevokeAsync(existToken.Token.ToString());
                 await _unitOfWork.SaveChangesAsync();
-
+                await _auditLog.LogAsync(new AuditLog
+                {
+                    UserId = existToken.UserId,
+                    Action = "Logout",
+                    Description = "Đăng xuất thành công",
+                    IpAddress = GetClientIp(),
+                    IsSuccess = true,
+                    CreatedAt = DateTime.UtcNow
+                });
             }
             return ApiResponse<bool>.SuccessResponse(true, "Đăng xuất thành công");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Lỗi Logout");
-
             return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
         }
     }

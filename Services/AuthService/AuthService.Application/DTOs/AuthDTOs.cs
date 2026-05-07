@@ -42,6 +42,19 @@ public class RefreshTokenRequest
 {
     public string RefreshToken { get; set; }
 }
+
+public class AuditLogResponse
+{
+    public int Id { get; set; }
+    public int? UserId { get; set; }
+    public string? UserEmail { get; set; }
+    public string Action { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? IpAddress { get; set; }
+    public bool IsSuccess { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
 public class ApiResponse<T>
 {
     public bool Success { get; set; }
