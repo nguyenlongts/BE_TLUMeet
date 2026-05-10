@@ -138,12 +138,14 @@ public class MeetingService : IMeetingService
             meeting.ActualStartTime = DateTime.UtcNow;
             meeting.Status = MeetingStatus.Live;
             await _unitOfWork.Meetings.UpdateAsync(meeting);
+            var acceptedInvites = await _unitOfWork.Meetings.GetAcceptedInvitesByMeetingIdAsync(meeting.Id);
             var outboxMessage = CreateOutboxMessage(nameof(MeetingStartedEvent), new MeetingStartedEvent
             {
                 MeetingId = meeting.Id,
                 RoomCode = meeting.RoomCode,
                 HostEmail = meeting.HostEmail,
-                StartedAt = meeting.ActualStartTime.Value
+                StartedAt = meeting.ActualStartTime.Value,
+                AcceptedEmails = acceptedInvites.Select(i => i.InviteeEmail).ToList()   
             });
             await _unitOfWork.Outbox.AddAsync(outboxMessage);
             await _unitOfWork.SaveChangesAsync();
@@ -439,7 +441,7 @@ public class MeetingService : IMeetingService
                     HostName = hostEmail,
                     Title = meeting.Title,
                     InviteeEmail = email,
-                    JoinLink = $"http://localhost:5173/join/{roomCode}",
+                    JoinLink = $"/join/{roomCode}",
                     ExpiresAt = invite.ExpiresAt
                 });
                 await _unitOfWork.Outbox.AddAsync(outbox);

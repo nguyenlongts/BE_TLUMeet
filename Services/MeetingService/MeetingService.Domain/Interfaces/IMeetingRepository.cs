@@ -23,4 +23,5 @@ public interface IMeetingRepository
     Task AddInviteAsync(MeetingInvite invite);
     Task<MeetingInvite?> GetInviteByIdAsync(int id);
     Task UpdateInviteAsync(MeetingInvite invite);
+    Task<List<MeetingInvite>> GetAcceptedInvitesByMeetingIdAsync(int meetingId);
 }

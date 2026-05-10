@@ -22,5 +22,10 @@ namespace NotificationService.API.Services
         {
             await _hubContext.Clients.Group(hostEmail).SendAsync("ReceiveInviteResponse", payload);
         }
+        public async Task SendMeetingStartedAsync(string recipientEmail, MeetingStartedNotificationDto payload)
+        {
+            await _hubContext.Clients.Group(recipientEmail)
+                .SendAsync("MeetingStarted", payload);
+        }
     }
 }

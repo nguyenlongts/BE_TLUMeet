@@ -15,6 +15,8 @@ public class MeetingStartedEvent
     public string RoomCode { get; set; } = string.Empty;
     public string HostEmail { get; set; } = string.Empty;
     public DateTime StartedAt { get; set; }
+    public List<string> AcceptedEmails { get; set; } = new();
+
 }
 public class MeetingDeletedEvent
 {

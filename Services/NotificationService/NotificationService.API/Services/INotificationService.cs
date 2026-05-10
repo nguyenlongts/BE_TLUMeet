@@ -6,5 +6,7 @@ namespace NotificationService.API.Services
     {
         Task SendInviteAsync(string inviteeEmail, InviteNotificationDto payload);
         Task SendInviteResponseAsync(string hostEmail, InviteResponseDto payload);
+        Task SendMeetingStartedAsync(string recipientEmail, MeetingStartedNotificationDto payload);
+
     }
 }

@@ -97,4 +97,9 @@
     {
         _context.Invites.Update(invite);
     }
+    public async Task<List<MeetingInvite>> GetAcceptedInvitesByMeetingIdAsync(int meetingId)
+    {
+        return await _context.Invites.Where(i => i.MeetingId == meetingId && i.Status == "Accepted").ToListAsync();
+    }
+    
 }
