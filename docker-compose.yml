@@ -169,6 +169,7 @@ services:
       - MONGODB_URI=mongodb://root:root@mongodb:27017/user_db?authSource=admin
       - KAFKA_BROKERS=kafka:29092
       - PORT=8080
+    restart: on-failure
     depends_on:
       kafka:
         condition: service_healthy
@@ -177,6 +178,26 @@ services:
     networks:
       - kafka-network
 
+  admin-service:
+    build:
+      context: ./Services/admin-service
+    container_name: admin-service
+    ports:
+      - "3002:8080"
+    environment:
+      - PORT=8080
+      - JWT_SECRET=2f45c598186d199fcef6dd3e81d9d7ff
+      - USER_SERVICE_URL=http://user-service:8080
+      - MONGODB_URI=mongodb://root:root@mongodb:27017/admin_db?authSource=admin
+      - MEETING_SERVICE_URL=http://meetingservice:8080
+    restart: on-failure
+    depends_on:
+      kafka:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - kafka-network
 
 networks:
   kafka-network:

@@ -115,6 +115,16 @@
       "AuthenticationOptions":{
         "AuthenticationProviderKey":"Bearer"
       }
+    },
+
+    {
+      "UpstreamPathTemplate": "/api/admin/{everything}",
+      "UpstreamHttpMethod": [ "GET", "POST", "PATCH", "DELETE", "OPTIONS" ],
+      "DownstreamPathTemplate": "/api/admin/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        { "Host": "admin-service", "Port": 8080 }
+      ]
     }
   ],
 
