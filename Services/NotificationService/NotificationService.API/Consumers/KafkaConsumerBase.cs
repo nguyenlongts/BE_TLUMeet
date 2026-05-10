@@ -24,7 +24,8 @@ public abstract class KafkaConsumerBase<T> : BackgroundService where T : class
             {
                 BootstrapServers = _configuration["Kafka:BootstrapServers"],
                 GroupId = GroupId,
-                AutoOffsetReset = AutoOffsetReset.Earliest
+                AutoOffsetReset = AutoOffsetReset.Earliest,
+                EnableAutoCommit = false
             };
             _consumer = new ConsumerBuilder<string, string>(config).Build();
             _consumer.Subscribe(Topic);

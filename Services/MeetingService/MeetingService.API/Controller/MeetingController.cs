@@ -187,5 +187,17 @@ public class MeetingController : ControllerBase
 
         return Ok(result);
     }
+
+    [Authorize]
+    [HttpGet("invited")]
+    public async Task<IActionResult> GetInvitedMeetings()
+    {
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email)) return Unauthorized();
+
+        var result = await _meetingService.GetAcceptedInviteMeetingsAsync(email);
+        if (!result.Success) return StatusCode(result.StatusCode, result);
+        return Ok(result);
+    }
 }
 

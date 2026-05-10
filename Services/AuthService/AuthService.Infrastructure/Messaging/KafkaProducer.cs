@@ -46,6 +46,7 @@ public class KafkaProducer : IKafkaProducer, IDisposable
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Failed to publish to topic {Topic}", topic);
             throw;
         }
     }

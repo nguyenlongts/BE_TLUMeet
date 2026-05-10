@@ -49,10 +49,13 @@ public class MeetingStartedConsumer : KafkaConsumerBase<MeetingStartedEvent>
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });
-
-            await notiService.SendMeetingStartedAsync(email, payload);
         }
 
         await dbContext.SaveChangesAsync();
+
+        foreach (var email in message.AcceptedEmails)
+        {
+            await notiService.SendMeetingStartedAsync(email, payload);
+        }
     }
 }

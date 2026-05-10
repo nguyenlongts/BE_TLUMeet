@@ -8,13 +8,17 @@ public class UnitOfWork : IUnitOfWork, IAsyncDisposable
     private IDbContextTransaction? _transaction;
     public IMeetingRepository Meetings { get; }
     public IOutboxRepository Outbox { get; }
-
+    public IParticipantRepository Participants{ get; }
+    public IInviteRepository Invites { get; }
     public UnitOfWork(MeetingDbContext context)
     {
         _context = context;
         Meetings = new MeetingRepository(_context);
         Outbox = new OutboxRepository(_context);
+        Participants = new ParticipantRepository(_context);
+        Invites = new InviteRepository(_context);
     }
+
 
     public async Task BeginTransactionAsync()
     {

@@ -23,4 +23,6 @@ public interface IMeetingService
 
     Task<ApiResponse<bool>> RespondInviteAsync(int inviteId, string inviteeEmail, string status);
 
+    Task<ApiResponse<List<MeetingResponse>>> GetAcceptedInviteMeetingsAsync(string email);
+
 }

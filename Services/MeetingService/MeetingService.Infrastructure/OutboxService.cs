@@ -1,7 +1,4 @@
-﻿
-
-
-namespace MeetingService.Infrastructure
+﻿namespace MeetingService.Infrastructure
 {
     public class OutboxService : BackgroundService
     {
