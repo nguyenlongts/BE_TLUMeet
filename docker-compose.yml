@@ -201,6 +201,7 @@ services:
     environment:
       Kafka__BootstrapServers: kafka-1:29092,kafka-2:29092,kafka-3:29092
       ConnectionStrings__DefaultConnection: Server=sqlserver;Database=MeetingDB;User=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      Jwt__Key: ${JWT_KEY}
     depends_on:
       kafka-1:
         condition: service_healthy
