@@ -6,8 +6,7 @@ public class MeetingDbContext : DbContext
 
     public DbSet<Meeting> Meetings { get; set; } = null!;
     public DbSet<MeetingParticipant> Participants { get; set; } = null!;
-    public DbSet<Guest> Guests { get; set; } = null!;
-    public DbSet<Role> Roles { get; set; }
+public DbSet<Role> Roles { get; set; }
     public DbSet<OutboxMessage> OutboxMessages { get; set; }
     public DbSet<MeetingInvite> Invites { get; set; } = null!;
 

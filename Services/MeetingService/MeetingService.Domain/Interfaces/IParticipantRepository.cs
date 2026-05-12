@@ -14,7 +14,6 @@ namespace MeetingService.Domain.Interfaces
         Task<MeetingParticipant?> GetByTokenAsync(string joinToken);
         Task AddAsync(MeetingParticipant participant);
         Task UpdateAsync(MeetingParticipant participant);
-        Task AddGuestAsync(Guest guest);
 
     }
 }
