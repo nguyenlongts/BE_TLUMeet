@@ -42,7 +42,8 @@ namespace NotificationService.API.Consumers
             await emailService.SendEmailAsync(
                 message.Email,
                 "Chào mừng đến với TLUMeet",
-                emailBody);
+                emailBody,
+                "Welcome");
         }
     }
 }
