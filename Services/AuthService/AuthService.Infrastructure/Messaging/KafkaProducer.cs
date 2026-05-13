@@ -7,7 +7,7 @@ namespace AuthService.Infrastructure.Messaging;
 
 public interface IKafkaProducer
 {
-    Task PublishAsync<T>(string topic, T message) where T : class;
+    Task PublishAsync<T>(string topic, T message, string key) where T : class;
 }
 
 public class KafkaProducer : IKafkaProducer, IDisposable
@@ -30,14 +30,14 @@ public class KafkaProducer : IKafkaProducer, IDisposable
         _producer = new ProducerBuilder<string, string>(config).Build();
     }
 
-    public async Task PublishAsync<T>(string topic, T message) where T : class
+    public async Task PublishAsync<T>(string topic, T message, string key) where T : class
     {
         try
         {
             var json = JsonSerializer.Serialize(message);
             var kafkaMessage = new Message<string, string>
             {
-                Key = Guid.NewGuid().ToString(),
+                Key = key,
                 Value = json
             };
 
