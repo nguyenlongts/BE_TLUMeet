@@ -90,11 +90,13 @@ public class MeetingService : IMeetingService
         );
     }
 
-    public async Task<ApiResponse<bool>> DeleteMeetingAsync(int id)
+    public async Task<ApiResponse<bool>> DeleteMeetingAsync(int id, string hostEmail)
     {
         var meeting = await _unitOfWork.Meetings.GetByIdAsync(id);
         if (meeting == null)
             return ApiResponse<bool>.ErrorResponse(404, "Phòng không tồn tại");
+        if (meeting.HostEmail != hostEmail)
+            return ApiResponse<bool>.ErrorResponse(403, "Bạn không phải chủ phòng");
         await _unitOfWork.BeginTransactionAsync();
         try
         {
@@ -234,24 +236,10 @@ public class MeetingService : IMeetingService
             return ApiResponse<MeetingParticipantResponse>.ErrorResponse(400, "Phògn đã kết thúc");
         if (userEmail == null && string.IsNullOrWhiteSpace(guestName))
             return ApiResponse<MeetingParticipantResponse>.ErrorResponse(400, "Tên hiển thị không được để trống");
-        int roleId;
-        int? guestId = null;
+        int roleId = userEmail != null ? (int)ParticipantRole.User : (int)ParticipantRole.Guest;
         await _unitOfWork.BeginTransactionAsync();
         try
         {
-            if (userEmail != null)
-            {
-                roleId = (int)ParticipantRole.User;
-            }
-            else
-            {
-                roleId = (int)ParticipantRole.Guest;
-                var guest = new Guest { DisplayName = guestName! };
-                await _unitOfWork.Participants.AddGuestAsync(guest);
-                await _unitOfWork.SaveChangesAsync();
-                guestId = guest.Id;
-            }
-
             var participant = new MeetingParticipant
             {
                 MeetingId = meeting.Id,
@@ -259,7 +247,6 @@ public class MeetingService : IMeetingService
                 DisplayName = userEmail ?? guestName!,
                 UserEmail = userEmail,
                 RoleId = roleId,
-                GuestId = guestId,
                 JoinToken = Guid.NewGuid().ToString()
             };
 

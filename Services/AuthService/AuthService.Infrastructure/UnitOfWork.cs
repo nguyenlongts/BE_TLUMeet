@@ -16,12 +16,15 @@ namespace AuthService.Infrastructure
         public IUserRepository Users { get; }
         public IRefreshTokenRepository RefreshTokens { get; }
         public IOutboxRepository OutboxMessages { get; }
-        public UnitOfWork(AuthDbContext context, IUserRepository users, IRefreshTokenRepository refreshTokens, IOutboxRepository outbox)
+        public IAuditLogRepository AuditLogs { get; }
+
+        public UnitOfWork(AuthDbContext context, IUserRepository users, IRefreshTokenRepository refreshTokens, IOutboxRepository outbox, IAuditLogRepository auditLogs)
         {
             _context = context;
             Users = users;
             RefreshTokens = refreshTokens;
             OutboxMessages = outbox;
+            AuditLogs = auditLogs;
         }
 
         public async Task BeginTransactionAsync()

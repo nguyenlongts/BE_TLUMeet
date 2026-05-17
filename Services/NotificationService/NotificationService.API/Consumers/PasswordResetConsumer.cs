@@ -51,6 +51,7 @@ public class PasswordResetConsumer : KafkaConsumerBase<PasswordResetEvent>
         await emailService.SendEmailAsync(
             message.Email,
             "Đặt lại mật khẩu TLUMeet",
-            emailBody);
+            emailBody,
+            "PasswordReset");
     }
 }

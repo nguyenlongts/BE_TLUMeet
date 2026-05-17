@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using AuthService.Domain.Models;
 
 namespace AuthService.Infrastructure;
@@ -9,12 +9,12 @@ public class AuthDbContext : DbContext
 
     public DbSet<User> Users { get; set; }
     public DbSet<Role> Roles { get; set; }
-    public DbSet<UserInfo> UserInfos { get; set; }
     public DbSet<UserLogin> UserLoginInfos { get; set; }
     public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<OutboxMessage> OutboxMessages { get; set; }
+    public DbSet<AuditLog> AuditLogs { get; set; }
 
-    public DbSet <OutboxMessage> OutboxMessages { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -27,11 +27,6 @@ public class AuthDbContext : DbContext
             entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
             entity.Property(e => e.PasswordHash).IsRequired();
         });
-
-        modelBuilder.Entity<User>()
-            .HasOne(u => u.UserInfo)
-            .WithOne(ui => ui.User)
-            .HasForeignKey<UserInfo>(ui => ui.UserId);
 
         modelBuilder.Entity<User>()
             .HasOne(u => u.LoginInfo)
@@ -51,7 +46,16 @@ public class AuthDbContext : DbContext
             entity.HasOne<User>()
                 .WithMany()
                 .HasForeignKey(t => t.UserId)
-                .OnDelete(DeleteBehavior.Cascade); 
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Action).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.UserEmail).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.IpAddress).HasMaxLength(50);
+            entity.HasIndex(e => e.UserEmail);
         });
 
         modelBuilder.Entity<Role>().HasData(
@@ -69,7 +73,7 @@ public class AuthDbContext : DbContext
                 IsActive = true,
                 RoleId = 1,
                 PasswordHash = "$2a$12$7rC/MDmgSgjS4FEhtfR60eX5KCuweE.SrxUPET7vZ9cNowwJPZPHG",
-                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc), 
+                CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             });
     }
 }

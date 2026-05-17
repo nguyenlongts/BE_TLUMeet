@@ -61,13 +61,18 @@ public class MeetingController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var result = await _meetingService.DeleteMeetingAsync(id);
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        if (string.IsNullOrEmpty(email))
+            return Unauthorized();
+
+        var result = await _meetingService.DeleteMeetingAsync(id, email);
 
         if (!result.Success)
-            return NotFound(result);
+            return StatusCode(result.StatusCode, result);
 
         return Ok(result);
     }

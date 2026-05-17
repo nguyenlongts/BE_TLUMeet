@@ -24,7 +24,7 @@ public abstract class KafkaConsumerBase<T> : BackgroundService where T : class
             {
                 BootstrapServers = _configuration["Kafka:BootstrapServers"],
                 GroupId = GroupId,
-                AutoOffsetReset = AutoOffsetReset.Earliest,
+                AutoOffsetReset = AutoOffsetReset.Latest,
                 EnableAutoCommit = false
             };
             _consumer = new ConsumerBuilder<string, string>(config).Build();
@@ -55,6 +55,7 @@ public abstract class KafkaConsumerBase<T> : BackgroundService where T : class
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "[{Consumer}] Error on topic {Topic}", GetType().Name, Topic);
+                    _consumer.Commit(consumeResult);
                 }
             }
         }, stoppingToken);

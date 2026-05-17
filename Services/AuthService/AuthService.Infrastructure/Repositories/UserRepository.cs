@@ -17,7 +17,6 @@ public class UserRepository : IUserRepository
     {
         return await _context.Users
             .Include(u => u.Role)
-            .Include(u => u.UserInfo)
             .Include(u => u.LoginInfo)
             .FirstOrDefaultAsync(u => u.Id == id);
     }
@@ -27,7 +26,6 @@ public class UserRepository : IUserRepository
         if (string.IsNullOrWhiteSpace(email)) return null;
         return await _context.Users
             .Include(u => u.Role)
-            .Include(u => u.UserInfo)
             .Include(u => u.LoginInfo)
             .FirstOrDefaultAsync(u => u.Email == email.ToLower());
     }
@@ -36,7 +34,6 @@ public class UserRepository : IUserRepository
     {
         return await _context.Users
             .Include(u => u.Role)
-            .Include(u => u.UserInfo)
             .Include(u => u.LoginInfo)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -48,7 +45,6 @@ public class UserRepository : IUserRepository
         if (user.RoleId == null)
             user.RoleId = 2;
 
-        user.UserInfo = new UserInfo();
         user.LoginInfo = new UserLogin();
 
         _context.Users.Add(user);

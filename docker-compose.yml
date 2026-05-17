@@ -199,6 +199,7 @@ services:
     ports:
       - "8081:8080"
     environment:
+      Jwt__Key: ${JWT_KEY}
       Kafka__BootstrapServers: kafka-1:29092,kafka-2:29092,kafka-3:29092
       ConnectionStrings__AuthDB: Server=sqlserver;Database=AuthDB;User=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
     depends_on:
@@ -223,6 +224,7 @@ services:
     environment:
       Kafka__BootstrapServers: kafka-1:29092,kafka-2:29092,kafka-3:29092
       ConnectionStrings__DefaultConnection: Server=sqlserver;Database=MeetingDB;User=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
+      Jwt__Key: ${JWT_KEY}
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -246,6 +248,7 @@ services:
       Kafka__BootstrapServers: kafka-1:29092,kafka-2:29092,kafka-3:29092
       ConnectionStrings__NotificationDatabase: Server=sqlserver;Database=NotificationDB;User=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
       FE__BaseUrl: http://localhost:5173
+      Jwt__Key: ${JWT_KEY}
     depends_on:
       kafka-1:
         condition: service_healthy

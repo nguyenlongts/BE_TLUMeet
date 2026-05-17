@@ -52,13 +52,13 @@ namespace AuthService.Infrastructure.BackgroundAction
                     switch (message.EventType) {
                         case nameof(UserRegisteredEvent):
                             var userCreatedEvent = System.Text.Json.JsonSerializer.Deserialize<UserRegisteredEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.UserRegistered, userCreatedEvent!);
+                            await producer.PublishAsync(KafkaTopics.UserRegistered, userCreatedEvent!, userCreatedEvent!.UserId.ToString());
                             break;
                         case nameof(PasswordResetRequestedEvent):
                             var passwordResetRequestedEvent = System.Text.Json.JsonSerializer.Deserialize<PasswordResetRequestedEvent>(message.Payload);
-                          
-                            await producer.PublishAsync(KafkaTopics.PasswordResetRequested, passwordResetRequestedEvent!);
-                            break; 
+
+                            await producer.PublishAsync(KafkaTopics.PasswordResetRequested, passwordResetRequestedEvent!, passwordResetRequestedEvent!.Email);
+                            break;
                 }
                     message.OccuredAt = DateTime.UtcNow;
                 }

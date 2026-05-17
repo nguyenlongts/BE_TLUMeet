@@ -42,11 +42,6 @@ public async Task<MeetingParticipant?> GetByTokenAsync(string joinToken)
         await _context.SaveChangesAsync();
     }
 
-    public async Task AddGuestAsync(Guest guest)
-    {
-        _context.Guests.Add(guest);
-        await _context.SaveChangesAsync();
-    }
 
 
 }
