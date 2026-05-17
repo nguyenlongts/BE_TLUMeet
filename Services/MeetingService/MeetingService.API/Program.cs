@@ -30,21 +30,21 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader();
     });
 });
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = "TLUMeet",
-            ValidAudience = "TLUMeet",
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-        };
-    });
+// builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+//     .AddJwtBearer(options =>
+    // {
+    //     options.TokenValidationParameters = new TokenValidationParameters
+    //     {
+    //         ValidateIssuer = true,
+    //         ValidateAudience = true,
+    //         ValidateLifetime = true,
+    //         ValidateIssuerSigningKey = true,
+    //         ValidIssuer = "TLUMeet",
+    //         ValidAudience = "TLUMeet",
+    //         IssuerSigningKey = new SymmetricSecurityKey(
+    //             Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+    //     };
+    // });
 var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
@@ -69,9 +69,9 @@ using (var scope = app.Services.CreateScope())
     }
 }
 app.UseCors("AllowAll");
-app.UseAuthentication();
+// app.UseAuthentication();
 
-app.UseAuthorization();
+// app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

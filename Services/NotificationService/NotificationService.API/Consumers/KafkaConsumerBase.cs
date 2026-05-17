@@ -40,9 +40,10 @@ public abstract class KafkaConsumerBase<T> : BackgroundService where T : class
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                ConsumeResult<string, string>? consumeResult = null;
                 try
                 {
-                    var consumeResult = _consumer.Consume(stoppingToken);
+                    consumeResult = _consumer.Consume(stoppingToken);
                     var message = JsonSerializer.Deserialize<T>(consumeResult.Message.Value);
                     if (message != null)
                     {
@@ -52,10 +53,19 @@ public abstract class KafkaConsumerBase<T> : BackgroundService where T : class
                     }
                 }
                 catch (OperationCanceledException) { break; }
+                catch (ConsumeException ex)
+                {
+                    // ✅ Tách riêng: topic chưa tồn tại thì KHÔNG commit, chờ rồi retry
+                    _logger.LogWarning("[{Consumer}] Topic not available: {Reason}. Retrying in 5s...",
+                        GetType().Name, ex.Error.Reason);
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "[{Consumer}] Error on topic {Topic}", GetType().Name, Topic);
-                    _consumer.Commit(consumeResult);
+                    // ✅ Chỉ commit khi thực sự đã consume được message
+                    if (consumeResult != null)
+                        _consumer.Commit(consumeResult);
                 }
             }
         }, stoppingToken);
