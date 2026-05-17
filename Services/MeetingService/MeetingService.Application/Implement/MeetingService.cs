@@ -90,12 +90,12 @@ public class MeetingService : IMeetingService
         );
     }
 
-    public async Task<ApiResponse<bool>> DeleteMeetingAsync(int id, string hostEmail)
+    public async Task<ApiResponse<bool>> DeleteMeetingAsync(int id, string hostEmail, bool isAdmin = false)
     {
         var meeting = await _unitOfWork.Meetings.GetByIdAsync(id);
         if (meeting == null)
             return ApiResponse<bool>.ErrorResponse(404, "Phòng không tồn tại");
-        if (meeting.HostEmail != hostEmail)
+        if (!isAdmin && meeting.HostEmail != hostEmail)
             return ApiResponse<bool>.ErrorResponse(403, "Bạn không phải chủ phòng");
         await _unitOfWork.BeginTransactionAsync();
         try

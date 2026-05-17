@@ -69,7 +69,8 @@ public class MeetingController : ControllerBase
         if (string.IsNullOrEmpty(email))
             return Unauthorized();
 
-        var result = await _meetingService.DeleteMeetingAsync(id, email);
+        var isAdmin = User.FindFirst("role")?.Value == "Admin";
+        var result = await _meetingService.DeleteMeetingAsync(id, email, isAdmin);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
