@@ -9,7 +9,7 @@ public interface IMeetingService
     Task<ApiResponse<List<MeetingResponse>>> GetAllMeetingsAsync();
     Task<ApiResponse<List<MeetingResponse>>> GetMeetingsByHostEmailAsync(string hostEmail);
     Task<ApiResponse<MeetingResponse>> UpdateMeetingAsync(UpdateMeetingRequest request);
-    Task<ApiResponse<bool>> DeleteMeetingAsync(int id, string hostEmail);
+    Task<ApiResponse<bool>> DeleteMeetingAsync(int id, string hostEmail, bool isAdmin = false);
     Task<ApiResponse<bool>> CheckRoomCodeExistsAsync(string roomCode);
 
     Task<ApiResponse<MeetingStatusDto>> GetMeetingStatusAsync(string roomCode);
