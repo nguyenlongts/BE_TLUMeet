@@ -145,6 +145,7 @@ public class MeetingService : IMeetingService
             var acceptedInvites = await _unitOfWork.Invites.GetAcceptedByMeetingIdAsync(meeting.Id);
             var outboxMessage = CreateOutboxMessage(nameof(MeetingStartedEvent), new MeetingStartedEvent
             {
+                Title = meeting.Title,
                 MeetingId = meeting.Id,
                 RoomCode = meeting.RoomCode,
                 HostEmail = meeting.HostEmail,
