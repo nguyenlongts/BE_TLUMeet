@@ -1,11 +1,14 @@
 import {
   Controller,
   Get,
+  Post,
   Delete,
   Param,
   ParseIntPipe,
   UseGuards,
   Query,
+  Body,
+  BadRequestException,
 } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { AdminService } from './admin.service';
@@ -39,6 +42,18 @@ export class AdminController {
   @UseGuards(JwtAdminGuard)
   deleteUser(@Param('id', ParseIntPipe) id: number) {
     return this.adminService.deleteUser(id);
+  }
+
+  @Post('users/import')
+  @UseGuards(JwtAdminGuard)
+  importUsers(
+    @Body()
+    body: { users: { name: string; email: string; password: string }[] },
+  ) {
+    if (!body?.users?.length) {
+      throw new BadRequestException('Danh sách user trống');
+    }
+    return this.adminService.importUsers(body.users);
   }
 
   @EventPattern('user-registered-events')

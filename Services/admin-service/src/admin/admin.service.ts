@@ -56,6 +56,63 @@ export class AdminService {
     return this.meetingStatModel.find().sort({ createdAt: -1 });
   }
 
+  async importUsers(
+    users: { name: string; email: string; password: string }[],
+  ) {
+    const authBase = process.env.AUTH_SERVICE_URL ?? 'http://authservice:8080';
+    const results: {
+      email: string;
+      success: boolean;
+      message: string;
+    }[] = [];
+
+    for (const u of users) {
+      const email = (u.email ?? '').trim().toLowerCase();
+      const name = (u.name ?? '').trim() || email.split('@')[0];
+      const password = u.password ?? '';
+
+      if (!email || !password) {
+        results.push({
+          email,
+          success: false,
+          message: 'Thiếu email hoặc mật khẩu',
+        });
+        continue;
+      }
+
+      try {
+        const res = await fetch(`${authBase}/api/Auth/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ Name: name, Email: email, Password: password }),
+        });
+        const body = (await res.json().catch(() => null)) as {
+          message?: string;
+        } | null;
+
+        results.push({
+          email,
+          success: res.ok,
+          message: body?.message ?? (res.ok ? 'Tạo thành công' : `HTTP ${res.status}`),
+        });
+      } catch (err) {
+        results.push({
+          email,
+          success: false,
+          message: err instanceof Error ? err.message : 'Lỗi không xác định',
+        });
+      }
+    }
+
+    const success = results.filter((r) => r.success).length;
+    return {
+      total: results.length,
+      success,
+      failed: results.length - success,
+      results,
+    };
+  }
+
   async deleteUser(userId: number) {
     const user = await this.userStatModel.findOne({ userId });
     if (!user) {
