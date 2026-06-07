@@ -21,6 +21,9 @@ public class MeetingService : IMeetingService
 
     public async Task<ApiResponse<MeetingResponse>> CreateMeetingAsync(CreateMeetingRequest request)
     {
+        if (request.ScheduledDateTime.HasValue && request.ScheduledDateTime.Value < DateTime.UtcNow)
+            return ApiResponse<MeetingResponse>.ErrorResponse(400, "Không thể tạo cuộc họp trong quá khứ");
+
         var meeting = new Meeting
         {
             Title = request.Title,

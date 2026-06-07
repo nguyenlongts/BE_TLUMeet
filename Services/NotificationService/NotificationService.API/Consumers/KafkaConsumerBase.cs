@@ -40,9 +40,10 @@ public abstract class KafkaConsumerBase<T> : BackgroundService where T : class
         {
             while (!stoppingToken.IsCancellationRequested)
             {
+                var consumeResult = _consumer.Consume(stoppingToken);
+
                 try
                 {
-                    var consumeResult = _consumer.Consume(stoppingToken);
                     var message = JsonSerializer.Deserialize<T>(consumeResult.Message.Value);
                     if (message != null)
                     {
