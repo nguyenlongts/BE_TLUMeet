@@ -10,7 +10,10 @@ namespace MeetingService.Application.Interfaces
     public interface IUnitOfWork
     {
         IMeetingRepository Meetings { get; }
+        IParticipantRepository Participants { get; }
+        IInviteRepository Invites { get; }
         IOutboxRepository Outbox { get; }
+
         Task BeginTransactionAsync();
         Task CommitAsync();
         Task RollbackAsync();

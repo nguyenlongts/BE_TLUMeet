@@ -22,23 +22,6 @@ namespace MeetingService.Infrastructure.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("MeetingService.Domain.Models.Guest", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("DisplayName")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Guests");
-                });
-
             modelBuilder.Entity("MeetingService.Domain.Models.Meeting", b =>
                 {
                     b.Property<int>("Id")
@@ -141,9 +124,6 @@ namespace MeetingService.Infrastructure.Migrations
                     b.Property<string>("DisplayName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<int?>("GuestId")
-                        .HasColumnType("int");
 
                     b.Property<string>("JoinToken")
                         .IsRequired()

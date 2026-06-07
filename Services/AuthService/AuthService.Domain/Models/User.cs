@@ -11,7 +11,6 @@ public class User
     public DateTime? UpdatedAt { get; set; }
     public int? RoleId { get; set; }
     public Role? Role { get; set; }
-    public UserInfo? UserInfo { get; set; }
     public UserLogin? LoginInfo { get; set; }
 
     public List<RefreshToken> RefreshTokens { get; set; } = new();

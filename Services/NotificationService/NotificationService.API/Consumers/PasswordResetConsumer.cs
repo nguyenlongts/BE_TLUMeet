@@ -22,7 +22,7 @@ public class PasswordResetConsumer : KafkaConsumerBase<PasswordResetEvent>
     {
         using var scope = _serviceProvider.CreateScope();
         var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
-        var fe = _configuration["FE:BaseUrl"];
+        var fe = _configuration["FE:BaseUrl"] ?? throw new InvalidOperationException("FE:BaseUrl is not configured");
 
         var resetLink = $"{fe}/reset-password?token={message.ResetToken}";
 
@@ -51,6 +51,7 @@ public class PasswordResetConsumer : KafkaConsumerBase<PasswordResetEvent>
         await emailService.SendEmailAsync(
             message.Email,
             "Đặt lại mật khẩu TLUMeet",
-            emailBody);
+            emailBody,
+            "PasswordReset");
     }
 }

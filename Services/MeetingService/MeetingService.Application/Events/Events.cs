@@ -11,6 +11,7 @@ public class MeetingCreatedEvent
 
 public class MeetingStartedEvent
 {
+    public string Title { get; set; } = string.Empty;
     public int MeetingId { get; set; }
     public string RoomCode { get; set; } = string.Empty;
     public string HostEmail { get; set; } = string.Empty;

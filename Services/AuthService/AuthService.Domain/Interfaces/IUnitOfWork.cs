@@ -11,6 +11,7 @@ namespace AuthService.Domain.Interfaces
         IUserRepository Users { get; }
         IRefreshTokenRepository RefreshTokens { get; }
         IOutboxRepository OutboxMessages { get; }
+        IAuditLogRepository AuditLogs { get; }
 
         Task<int> SaveChangesAsync();
         Task BeginTransactionAsync();

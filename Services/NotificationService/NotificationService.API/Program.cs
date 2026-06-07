@@ -26,7 +26,7 @@ builder.Services.AddScoped<INotificationAppService, NotificationAppService>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddHostedService<MeetingStartedConsumer>();
 builder.Services.AddDbContext<NotificationDbContext>(options =>
-{builder.Services.AddHostedService<MeetingStartedConsumer>();
+{
     options.UseSqlServer(builder.Configuration.GetConnectionString("NotificationDatabase"));
 });
 builder.Services.AddHostedService<InviteRespondedConsumer>();

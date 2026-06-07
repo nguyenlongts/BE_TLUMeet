@@ -1,8 +1,7 @@
-﻿using AuthService.Application.DTOs;
+using AuthService.Application.DTOs;
 using AuthService.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace AuthService.API.Controllers;
 
@@ -11,11 +10,13 @@ namespace AuthService.API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly IAuditLogService _auditLogService;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService, IAuditLogService auditLogService, ILogger<AuthController> logger)
     {
         _authService = authService;
+        _auditLogService = auditLogService;
         _logger = logger;
     }
 
@@ -23,6 +24,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         var result = await _authService.RegisterAsync(request);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _auditLogService.LogAsync("Register", request.Email, result.Success, result.Success ? null : result.Message, ip);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
@@ -34,6 +37,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var result = await _authService.LoginAsync(request);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _auditLogService.LogAsync("Login", request.Email, result.Success, result.Success ? null : result.Message, ip);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
@@ -50,6 +55,8 @@ public class AuthController : ControllerBase
             return Unauthorized(new { message = "Invalid token" });
 
         var result = await _authService.ChangePasswordAsync(userEmail, request);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _auditLogService.LogAsync("ChangePassword", userEmail, result.Success, result.Success ? null : result.Message, ip);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
@@ -61,6 +68,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
         var result = await _authService.ForgotPasswordAsync(request);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _auditLogService.LogAsync("ForgotPassword", request.Email, result.Success, result.Success ? null : result.Message, ip);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
@@ -72,6 +81,8 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         var result = await _authService.ResetPasswordAsync(request);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _auditLogService.LogAsync("ResetPassword", request.Token, result.Success, result.Success ? null : result.Message, ip);
 
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
@@ -105,6 +116,7 @@ public class AuthController : ControllerBase
             return StatusCode(result.StatusCode, result);
         return Ok(result);
     }
+
     [HttpPost("refresh")]
     public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
     {

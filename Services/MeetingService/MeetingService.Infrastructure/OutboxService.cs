@@ -1,7 +1,4 @@
-﻿
-
-
-namespace MeetingService.Infrastructure
+﻿namespace MeetingService.Infrastructure
 {
     public class OutboxService : BackgroundService
     {
@@ -43,36 +40,36 @@ namespace MeetingService.Infrastructure
                     {
                         case nameof(MeetingCreatedEvent):
                             var userCreatedEvent = System.Text.Json.JsonSerializer.Deserialize<MeetingCreatedEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.MeetingCreated, userCreatedEvent!);
+                            await producer.PublishAsync(KafkaTopics.MeetingCreated, userCreatedEvent!, userCreatedEvent!.MeetingId.ToString());
                             break;
                         case nameof(MeetingStartedEvent):
                             var meetingStartedEvent = System.Text.Json.JsonSerializer.Deserialize<MeetingStartedEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.MeetingStarted, meetingStartedEvent!);
+                            await producer.PublishAsync(KafkaTopics.MeetingStarted, meetingStartedEvent!, meetingStartedEvent!.MeetingId.ToString());
                             break;
 
                         case nameof(MeetingDeletedEvent):
                             var meetingDeletedEvent = System.Text.Json.JsonSerializer.Deserialize<MeetingDeletedEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.MeetingDeleted, meetingDeletedEvent!);
+                            await producer.PublishAsync(KafkaTopics.MeetingDeleted, meetingDeletedEvent!, meetingDeletedEvent!.MeetingId.ToString());
                             break;
                         case nameof(MeetingEndedEvent):
                             var meetingEndedEvent = System.Text.Json.JsonSerializer.Deserialize<MeetingEndedEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.MeetingEnded, meetingEndedEvent!);
+                            await producer.PublishAsync(KafkaTopics.MeetingEnded, meetingEndedEvent!, meetingEndedEvent!.MeetingId.ToString());
                             break;
                         case nameof(ParticipantJoinedEvent):
                             var participantJoinedEvent = System.Text.Json.JsonSerializer.Deserialize<ParticipantJoinedEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.ParticipantJoined, participantJoinedEvent!);
+                            await producer.PublishAsync(KafkaTopics.ParticipantJoined, participantJoinedEvent!, participantJoinedEvent!.MeetingId.ToString());
                             break;
                         case nameof(ParticipantLeftEvent):
                             var participantLeftEvent = System.Text.Json.JsonSerializer.Deserialize<ParticipantLeftEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.ParticipantLeft, participantLeftEvent!);
+                            await producer.PublishAsync(KafkaTopics.ParticipantLeft, participantLeftEvent!, participantLeftEvent!.MeetingId.ToString());
                             break;
                         case nameof(MeetingInvitedEvent):
                             var meetingInvitedEvent = System.Text.Json.JsonSerializer.Deserialize<MeetingInvitedEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.MeetingInvited, meetingInvitedEvent!);
+                            await producer.PublishAsync(KafkaTopics.MeetingInvited, meetingInvitedEvent!, meetingInvitedEvent!.RoomCode);
                             break;
                         case nameof(InviteRespondedEvent):
                             var inviteRespondedEvent = System.Text.Json.JsonSerializer.Deserialize<InviteRespondedEvent>(message.Payload);
-                            await producer.PublishAsync(KafkaTopics.InviteResponded, inviteRespondedEvent!);
+                            await producer.PublishAsync(KafkaTopics.InviteResponded, inviteRespondedEvent!, inviteRespondedEvent!.RoomCode);
                             break;
                     }
                     message.OccuredAt = DateTime.UtcNow;
