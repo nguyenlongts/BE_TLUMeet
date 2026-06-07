@@ -418,10 +418,20 @@ public class MeetingService : IMeetingService
         try
         {
             var invites = new List<MeetingInvite>();
+            var skipped = new List<string>();
             foreach (var email in emails)
             {
-                if (await _unitOfWork.Invites.ExistsPendingAsync(meeting.Id, email))
+                if (string.Equals(email, hostEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    skipped.Add(email);
                     continue;
+                }
+
+                if (await _unitOfWork.Invites.ExistsActiveAsync(meeting.Id, email))
+                {
+                    skipped.Add(email);
+                    continue;
+                }
 
                 var invite = new MeetingInvite
                 {
@@ -434,6 +444,11 @@ public class MeetingService : IMeetingService
                 await _unitOfWork.Invites.AddAsync(invite);
                 invites.Add(invite);
             }
+
+            if (invites.Count == 0)
+                return ApiResponse<bool>.ErrorResponse(409, skipped.Count > 0
+                    ? $"Các email đã được mời hoặc đã tham gia: {string.Join(", ", skipped)}"
+                    : "Không có email hợp lệ để mời");
 
             await _unitOfWork.SaveChangesAsync();
 
