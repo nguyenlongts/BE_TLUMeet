@@ -60,7 +60,6 @@ public class MeetingController : ControllerBase
         return Ok(result);
     }
 
-    [Authorize]
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {

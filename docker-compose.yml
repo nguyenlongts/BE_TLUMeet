@@ -133,6 +133,26 @@ services:
       retries: 10
       start_period: 30s
 
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    command: ["--bind_ip_all"]
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
   gateway:
     build:
       context: ./ApiGateway
@@ -147,10 +167,12 @@ services:
       - authservice
       - meetingservice
       - notiservice
+      # - user-service
     networks:
       - kafka-network
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    user: root
     ports:
       - "14333:1433"
     environment:
@@ -203,6 +225,8 @@ services:
       Kafka__BootstrapServers: kafka-1:29092,kafka-2:29092,kafka-3:29092
       ConnectionStrings__DefaultConnection: Server=sqlserver;Database=MeetingDB;User=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;
       Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: TLUMeet
+      Jwt__Audience: TLUMeet
     depends_on:
       kafka-1:
         condition: service_healthy
@@ -256,6 +280,59 @@ services:
     networks:
       - kafka-network
 
+  user-service:
+    build:
+      context: ./Services/user-service
+    container_name: user-service
+    ports:
+      - "3001:8080"
+    environment:
+      - MONGODB_URI=mongodb://root:root@mongodb:27017/user_db?authSource=admin
+      - JWT_SECRET=2f45c598186d199fcef6dd3e81d9d7ff
+      - KAFKA_BROKERS=kafka-1:29092,kafka-2:29092,kafka-3:29092
+      - PORT=8080
+      - CLOUDINARY_CLOUD_NAME=diieec56y
+      - CLOUDINARY_API_KEY=247776767218118
+      - CLOUDINARY_API_SECRET=POUyttMziKYdEVepsKjeDLsu0Ow
+    restart: on-failure
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - kafka-network
+
+  admin-service:
+    build:
+      context: ./Services/admin-service
+    container_name: admin-service
+    ports:
+      - "3002:8080"
+    environment:
+      - PORT=8080
+      - JWT_SECRET=2f45c598186d199fcef6dd3e81d9d7ff
+      - USER_SERVICE_URL=http://user-service:8080
+      - MONGODB_URI=mongodb://root:root@mongodb:27017/admin_db?authSource=admin
+      - MEETING_SERVICE_URL=http://meetingservice:8080
+      - KAFKA_BROKERS=kafka-1:29092,kafka-2:29092,kafka-3:29092
+    restart: on-failure
+    depends_on:
+      kafka-1:
+        condition: service_healthy
+      kafka-2:
+        condition: service_healthy
+      kafka-3:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    networks:
+      - kafka-network
+
 networks:
   kafka-network:
     driver: bridge
@@ -265,3 +342,4 @@ volumes:
   kafka-data-2:
   kafka-data-3:
   sql-data:
+  mongo-data:
