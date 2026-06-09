@@ -1,4 +1,5 @@
-﻿using NotificationService.API.DTOs;
+﻿using Microsoft.EntityFrameworkCore;
+using NotificationService.API.DTOs;
 using NotificationService.API.Events;
 using NotificationService.API.Model;
 using NotificationService.API.Services;
@@ -42,6 +43,27 @@ namespace NotificationService.API.Consumers
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });
+
+            // Cập nhật notification MeetingInvite gốc của người được mời -> đánh dấu đã phản hồi
+            // để khi F5 không còn hiện nút Đồng ý/Từ chối nữa
+            var inviteNotifs = await dbcontext.Notifications
+                .Where(n => n.RecipientEmail == message.InviteeEmail && n.Type == "MeetingInvite")
+                .ToListAsync();
+            foreach (var n in inviteNotifs)
+            {
+                try
+                {
+                    var dto = JsonSerializer.Deserialize<InviteNotificationDto>(n.Payload);
+                    if (dto != null && dto.InviteId == message.InviteId)
+                    {
+                        dto.Status = message.Status;
+                        n.Payload = JsonSerializer.Serialize(dto);
+                        n.IsRead = true;
+                    }
+                }
+                catch { /* payload không hợp lệ thì bỏ qua */ }
+            }
+
             await dbcontext.SaveChangesAsync();
             await notiService.SendInviteResponseAsync(message.HostEmail,responsedDTO);
         }

@@ -43,6 +43,7 @@ export class UsersController {
       phone?: string;
       address?: string;
       avatarUrl?: string;
+      birthday?: string | Date;
     }
   ){
     return this.usersService.updateProfile(userId,body)
