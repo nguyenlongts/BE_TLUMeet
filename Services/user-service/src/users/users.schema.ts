@@ -24,6 +24,9 @@ export class User{
   registeredAt:Date;
 
   @Prop()
+  birthday?: Date;
+
+  @Prop()
   phone?:string;
 
   @Prop()

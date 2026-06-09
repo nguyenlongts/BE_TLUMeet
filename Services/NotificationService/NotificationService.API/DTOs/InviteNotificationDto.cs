@@ -9,6 +9,9 @@
         public string HostEmail { get; set; } = string.Empty;   
         public string JoinLink { get; set; } = string.Empty;
 
-        public DateTime ExpiresAt { get; set; }  
+        public DateTime ExpiresAt { get; set; }
+
+        // Trạng thái phản hồi của người được mời ("Accepted"/"Declined"); null = chưa phản hồi
+        public string? Status { get; set; }
     }
 }

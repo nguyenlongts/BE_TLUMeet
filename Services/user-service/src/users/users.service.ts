@@ -42,7 +42,7 @@ export class UsersService {
     return user;
   }
 
-  async updateProfile(userId:number,data:{name?:string,phone?:string,address?:string,avatarUrl?:string}){
+  async updateProfile(userId:number,data:{name?:string,phone?:string,address?:string,avatarUrl?:string,birthday?:string|Date}){
 
     const updatedUser=await this.userModel.findOneAndUpdate(
       {userId},

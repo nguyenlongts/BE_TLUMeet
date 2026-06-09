@@ -29,10 +29,13 @@ public class MeetingStartedConsumer : KafkaConsumerBase<MeetingStartedEvent>
         var notiService = scope.ServiceProvider.GetRequiredService<INotificationService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
 
+        // Fallback để không bao giờ hiển thị title rỗng (phòng "")
+        var meetingTitle = string.IsNullOrWhiteSpace(message.Title) ? "Cuộc họp" : message.Title;
+
         var payload = new MeetingStartedNotificationDto
         {
             RoomCode = message.RoomCode,
-            Title = message.Title,
+            Title = meetingTitle,
             HostEmail = message.HostEmail,
             StartedAt = message.StartedAt,
             JoinLink = $"/meet/{message.RoomCode}"
@@ -44,7 +47,7 @@ public class MeetingStartedConsumer : KafkaConsumerBase<MeetingStartedEvent>
             {
                 RecipientEmail = email,
                 Type = "MeetingStarted",
-                Title = $"Phòng họp \"{message.Title}\" đã bắt đầu",
+                Title = $"Phòng họp \"{meetingTitle}\" đã bắt đầu",
                 Payload = JsonSerializer.Serialize(payload),
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
