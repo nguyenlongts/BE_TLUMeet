@@ -56,7 +56,8 @@ public class AuthServiceImpl : IAuthService
             Email = request.Email.ToLower(),
             PasswordHash = passwordHash,
             CreatedAt = DateTime.UtcNow,
-            IsActive = true
+            IsActive = true,
+            IsEmailVerified = false
         };
 
 
@@ -66,36 +67,38 @@ public class AuthServiceImpl : IAuthService
             var createdUser = await _unitOfWork.Users.CreateAsync(user);
             await _unitOfWork.SaveChangesAsync();
 
-            var refreshToken = CreateNewRefreshToken(user.Id);
-            await _unitOfWork.RefreshTokens.SaveAsync(refreshToken);
+            // Chưa đăng nhập được cho tới khi xác thực email. Gửi sự kiện email xác thực.
+            var now = DateTime.UtcNow;
+            var expiresAt = now.AddHours(24);
+            var verifyToken = GenerateEmailVerificationToken(createdUser);
             var outboxMessage = new OutboxMessage
             {
-                EventType = nameof(UserRegisteredEvent),
-                Payload = JsonSerializer.Serialize(new UserRegisteredEvent
+                EventType = nameof(EmailVerificationRequestedEvent),
+                Payload = JsonSerializer.Serialize(new EmailVerificationRequestedEvent
                 {
-                    UserId = createdUser.Id,
                     Email = createdUser.Email,
                     UserName = createdUser.UserName,
-                    RegisteredAt = DateTime.UtcNow,
+                    VerificationToken = verifyToken,
+                    RequestedAt = now,
+                    ExpiresAt = expiresAt
                 }),
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = now,
                 ErrorMessage = null
             };
 
             await _unitOfWork.OutboxMessages.AddAsync(outboxMessage);
             await _unitOfWork.SaveChangesAsync();
             await _unitOfWork.CommitAsync();
-            var accessToken = GenerateJwtToken(createdUser);
 
             var response = new AuthResponse
             {
                 Id = createdUser.Id,
                 Name = createdUser.UserName,
                 Email = createdUser.Email,
-                Token = accessToken,
-                RefreshToken = refreshToken.Token.ToString()
+                Token = string.Empty,
+                RefreshToken = string.Empty
             };
-            return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng ký thành công");
+            return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng ký thành công. Vui lòng kiểm tra email để xác thực tài khoản.");
         }
         catch (Exception ex)
         {
@@ -145,6 +148,9 @@ public class AuthServiceImpl : IAuthService
 
             return ApiResponse<AuthResponse>.ErrorResponse(401, "Email hoặc mật khẩu không chính xác");
         }
+
+        if (!user.IsEmailVerified)
+            return ApiResponse<AuthResponse>.ErrorResponse(403, "Vui lòng xác thực email trước khi đăng nhập");
 
         var refreshToken = Guid.NewGuid();
         try
@@ -236,7 +242,8 @@ public class AuthServiceImpl : IAuthService
                     Email = email,
                     PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
                     CreatedAt = DateTime.UtcNow,
-                    IsActive = true
+                    IsActive = true,
+                    IsEmailVerified = true // email Google đã được xác thực
                 };
                 user = await _unitOfWork.Users.CreateAsync(user);
                 await _unitOfWork.SaveChangesAsync();
@@ -549,6 +556,151 @@ public class AuthServiceImpl : IAuthService
         );
         return new JwtSecurityTokenHandler().WriteToken(token);
 
+    }
+
+    private string GenerateEmailVerificationToken(User user)
+    {
+        var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+        var claims = new[]
+        {
+            new Claim("email", user.Email),
+            new Claim("purpose", "verify-email"),
+        };
+        var token = new JwtSecurityToken(
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
+            claims: claims,
+            expires: DateTime.UtcNow.AddHours(24),
+            signingCredentials: credentials
+        );
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public async Task<ApiResponse<bool>> VerifyEmailAsync(VerifyEmailRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token))
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
+
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var validationParams = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)),
+                ValidateIssuer = false,
+                ValidateAudience = false,
+                ValidateLifetime = true
+            };
+            handler.ValidateToken(request.Token, validationParams, out _);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Email verification token validation failed");
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ hoặc đã hết hạn");
+        }
+
+        // Đọc claim trực tiếp từ payload (tránh việc JwtSecurityTokenHandler ánh xạ lại tên claim "email")
+        var parts = request.Token.Split('.');
+        if (parts.Length != 3)
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
+
+        var payloadJson = Encoding.UTF8.GetString(Convert.FromBase64String(PadBase64(parts[1])));
+        var payloadDoc = JsonDocument.Parse(payloadJson);
+        var purpose = payloadDoc.RootElement.TryGetProperty("purpose", out var p) ? p.GetString() : null;
+        var email = payloadDoc.RootElement.TryGetProperty("email", out var e) ? e.GetString() : null;
+
+        if (purpose != "verify-email")
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
+        if (string.IsNullOrWhiteSpace(email))
+            return ApiResponse<bool>.ErrorResponse(400, "Token không hợp lệ");
+
+        var user = await _unitOfWork.Users.GetByEmailAsync(email);
+        if (user == null)
+            return ApiResponse<bool>.ErrorResponse(404, "Người dùng không tồn tại");
+        if (user.IsEmailVerified)
+            return ApiResponse<bool>.SuccessResponse(true, "Email đã được xác thực");
+
+        try
+        {
+            await _unitOfWork.BeginTransactionAsync();
+            user.IsEmailVerified = true;
+            user.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Users.UpdateAsync(user);
+
+            // Gửi email chào mừng sau khi xác thực thành công
+            var welcome = new OutboxMessage
+            {
+                EventType = nameof(UserRegisteredEvent),
+                Payload = JsonSerializer.Serialize(new UserRegisteredEvent
+                {
+                    UserId = user.Id,
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    RegisteredAt = DateTime.UtcNow
+                }),
+                CreatedAt = DateTime.UtcNow,
+                ErrorMessage = null
+            };
+            await _unitOfWork.OutboxMessages.AddAsync(welcome);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            _logger.LogError(ex, "Lỗi transaction VerifyEmail");
+            return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
+        }
+
+        return ApiResponse<bool>.SuccessResponse(true, "Xác thực email thành công");
+    }
+
+    public async Task<ApiResponse<bool>> ResendVerificationAsync(ResendVerificationRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Email))
+            return ApiResponse<bool>.ErrorResponse(400, "Email không được để trống");
+
+        var user = await _unitOfWork.Users.GetByEmailAsync(request.Email.ToLower());
+        // Không tiết lộ email có tồn tại hay không
+        if (user == null)
+            return ApiResponse<bool>.SuccessResponse(true, "Nếu email tồn tại, link xác thực đã được gửi");
+        if (user.IsEmailVerified)
+            return ApiResponse<bool>.SuccessResponse(true, "Email đã được xác thực");
+
+        try
+        {
+            var now = DateTime.UtcNow;
+            var verifyToken = GenerateEmailVerificationToken(user);
+            await _unitOfWork.BeginTransactionAsync();
+            var outbox = new OutboxMessage
+            {
+                EventType = nameof(EmailVerificationRequestedEvent),
+                Payload = JsonSerializer.Serialize(new EmailVerificationRequestedEvent
+                {
+                    Email = user.Email,
+                    UserName = user.UserName,
+                    VerificationToken = verifyToken,
+                    RequestedAt = now,
+                    ExpiresAt = now.AddHours(24)
+                }),
+                CreatedAt = now,
+                ErrorMessage = null
+            };
+            await _unitOfWork.OutboxMessages.AddAsync(outbox);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            _logger.LogError(ex, "Lỗi transaction ResendVerification");
+            return ApiResponse<bool>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
+        }
+
+        return ApiResponse<bool>.SuccessResponse(true, "Đã gửi lại email xác thực");
     }
 
     private bool IsValidEmail(string email)

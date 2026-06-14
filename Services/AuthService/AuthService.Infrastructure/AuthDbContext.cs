@@ -71,6 +71,7 @@ public class AuthDbContext : DbContext
                 UserName = "admin",
                 Email = "admin@gmail.com",
                 IsActive = true,
+                IsEmailVerified = true,
                 RoleId = 1,
                 PasswordHash = "$2a$12$7rC/MDmgSgjS4FEhtfR60eX5KCuweE.SrxUPET7vZ9cNowwJPZPHG",
                 CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),

@@ -64,6 +64,11 @@ namespace AuthService.Infrastructure.BackgroundAction
 
                             await producer.PublishAsync(KafkaTopics.PasswordChanged, passwordChangedEvent!, passwordChangedEvent!.Email);
                             break;
+                        case nameof(EmailVerificationRequestedEvent):
+                            var emailVerificationEvent = System.Text.Json.JsonSerializer.Deserialize<EmailVerificationRequestedEvent>(message.Payload);
+
+                            await producer.PublishAsync(KafkaTopics.EmailVerificationRequested, emailVerificationEvent!, emailVerificationEvent!.Email);
+                            break;
                 }
                     message.OccuredAt = DateTime.UtcNow;
                 }

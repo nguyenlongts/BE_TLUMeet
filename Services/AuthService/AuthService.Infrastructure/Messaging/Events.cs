@@ -36,3 +36,12 @@ public class PasswordResetRequestedEvent
     public DateTime ExpiresAt { get; set; }
 }
 
+public class EmailVerificationRequestedEvent
+{
+    public string Email { get; set; } = string.Empty;
+    public string UserName { get; set; } = string.Empty;
+    public string VerificationToken { get; set; } = string.Empty;
+    public DateTime RequestedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }
+}
+

@@ -48,6 +48,14 @@ public class RefreshTokenRequest
 {
     public string RefreshToken { get; set; }
 }
+public class VerifyEmailRequest
+{
+    public string Token { get; set; } = string.Empty;
+}
+public class ResendVerificationRequest
+{
+    public string Email { get; set; } = string.Empty;
+}
 public class ApiResponse<T>
 {
     public bool Success { get; set; }
