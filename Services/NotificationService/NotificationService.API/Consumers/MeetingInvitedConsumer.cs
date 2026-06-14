@@ -38,7 +38,10 @@ namespace NotificationService.API.Consumers
                 HostEmail = message.HostEmail,
                 HostName = message.HostName,
                 Title = message.Title,
+                Description = message.Description,
                 JoinLink = message.JoinLink,
+                ScheduledDateTime = message.ScheduledDateTime,
+                Duration = message.Duration,
                 ExpiresAt = message.ExpiresAt
             };
 
@@ -66,12 +69,27 @@ namespace NotificationService.API.Consumers
                     : $"{fe.TrimEnd('/')}/meet/{message.RoomCode}";
                 var meetingTitle = string.IsNullOrWhiteSpace(message.Title) ? "Cuộc họp" : message.Title;
 
+                // Chi tiết cuộc họp (chỉ hiển thị phần có dữ liệu)
+                var scheduleHtml = message.ScheduledDateTime.HasValue
+                    ? $"<p style='margin:4px 0;'>🕒 Thời gian: <strong>{message.ScheduledDateTime.Value:HH:mm dd/MM/yyyy} (UTC)</strong></p>"
+                    : "";
+                var durationHtml = message.Duration > 0
+                    ? $"<p style='margin:4px 0;'>⏱️ Thời lượng: <strong>{message.Duration} phút</strong></p>"
+                    : "";
+                var descriptionHtml = string.IsNullOrWhiteSpace(message.Description)
+                    ? ""
+                    : $"<p style='margin:4px 0;'>📝 Mô tả: {message.Description}</p>";
+
                 var emailBody = $@"
                     <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
                         <h2 style='color: #2563eb;'>Bạn được mời tham gia cuộc họp</h2>
                         <p><strong>{message.HostName}</strong> đã mời bạn tham gia cuộc họp <strong>{meetingTitle}</strong> trên TLUMeet.</p>
                         <div style='background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0;'>
-                            <p style='margin:4px 0;'>Mã phòng: <strong>{message.RoomCode}</strong></p>
+                            <p style='margin:4px 0;'>📌 Tiêu đề: <strong>{meetingTitle}</strong></p>
+                            {scheduleHtml}
+                            {durationHtml}
+                            {descriptionHtml}
+                            <p style='margin:4px 0;'>🔑 Mã phòng: <strong>{message.RoomCode}</strong></p>
                         </div>
                         <p style='margin: 28px 0;'>
                             <a href='{joinLink}'

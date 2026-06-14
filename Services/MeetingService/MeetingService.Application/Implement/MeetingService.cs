@@ -461,8 +461,11 @@ public class MeetingService : IMeetingService
                     HostEmail = hostEmail,
                     HostName = hostEmail,
                     Title = meeting.Title,
+                    Description = meeting.Description,
                     InviteeEmail = invite.InviteeEmail,
                     JoinLink = $"/join/{roomCode}",
+                    ScheduledDateTime = meeting.ScheduledDateTime,
+                    Duration = meeting.Duration,
                     ExpiresAt = invite.ExpiresAt
                 });
                 await _unitOfWork.Outbox.AddAsync(outbox);
