@@ -13,6 +13,12 @@ public class LoginRequest
     public string Password { get; set; } = string.Empty;
 }
 
+public class GoogleLoginRequest
+{
+    // ID token (JWT) do Google Identity Services trả về phía client
+    public string IdToken { get; set; } = string.Empty;
+}
+
 public class AuthResponse
 {
     public int Id { get; set; }

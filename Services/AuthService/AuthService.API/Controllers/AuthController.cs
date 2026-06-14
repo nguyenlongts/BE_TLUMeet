@@ -46,6 +46,19 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+    {
+        var result = await _authService.GoogleLoginAsync(request);
+        var ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+        await _auditLogService.LogAsync("GoogleLogin", result.Data?.Email ?? "unknown", result.Success, result.Success ? null : result.Message, ip);
+
+        if (!result.Success)
+            return StatusCode(result.StatusCode, result);
+
+        return Ok(result);
+    }
+
     [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)

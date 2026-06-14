@@ -4,6 +4,7 @@ using AuthService.Domain.Interfaces;
 using AuthService.Domain.Models;
 using AuthService.Infrastructure;
 using AuthService.Infrastructure.Messaging;
+using Google.Apis.Auth;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
@@ -190,6 +191,110 @@ public class AuthServiceImpl : IAuthService
 
         return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng nhập thành công");
 
+    }
+
+    public async Task<ApiResponse<AuthResponse>> GoogleLoginAsync(GoogleLoginRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.IdToken))
+            return ApiResponse<AuthResponse>.ErrorResponse(400, "Thiếu Google token");
+
+        // Xác thực ID token với Google (kiểm tra chữ ký, issuer, hạn dùng, và audience = ClientId của app)
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            var settings = new GoogleJsonWebSignature.ValidationSettings();
+            var clientId = _configuration["Google:ClientId"];
+            if (!string.IsNullOrWhiteSpace(clientId))
+                settings.Audience = new[] { clientId };
+            payload = await GoogleJsonWebSignature.ValidateAsync(request.IdToken, settings);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Google ID token không hợp lệ");
+            return ApiResponse<AuthResponse>.ErrorResponse(401, "Google token không hợp lệ");
+        }
+
+        if (payload == null || string.IsNullOrWhiteSpace(payload.Email))
+            return ApiResponse<AuthResponse>.ErrorResponse(401, "Không lấy được email từ Google");
+        if (!payload.EmailVerified)
+            return ApiResponse<AuthResponse>.ErrorResponse(401, "Email Google chưa được xác thực");
+
+        var email = payload.Email.ToLower();
+        var user = await _unitOfWork.Users.GetByEmailAsync(email);
+
+        try
+        {
+            await _unitOfWork.BeginTransactionAsync();
+
+            if (user == null)
+            {
+                // Tạo tài khoản mới từ Google. Không có mật khẩu → đặt hash ngẫu nhiên
+                // để không thể đăng nhập bằng mật khẩu (chỉ đăng nhập qua Google).
+                user = new User
+                {
+                    UserName = string.IsNullOrWhiteSpace(payload.Name) ? email.Split('@')[0] : payload.Name,
+                    Email = email,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(Guid.NewGuid().ToString()),
+                    CreatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+                user = await _unitOfWork.Users.CreateAsync(user);
+                await _unitOfWork.SaveChangesAsync();
+
+                var welcomeOutbox = new OutboxMessage
+                {
+                    EventType = nameof(UserRegisteredEvent),
+                    Payload = JsonSerializer.Serialize(new UserRegisteredEvent
+                    {
+                        UserId = user.Id,
+                        Email = user.Email,
+                        UserName = user.UserName,
+                        RegisteredAt = DateTime.UtcNow,
+                    }),
+                    CreatedAt = DateTime.UtcNow,
+                    ErrorMessage = null
+                };
+                await _unitOfWork.OutboxMessages.AddAsync(welcomeOutbox);
+            }
+            else
+            {
+                if (!user.IsActive)
+                {
+                    await _unitOfWork.RollbackAsync();
+                    return ApiResponse<AuthResponse>.ErrorResponse(403, "Tài khoản đã bị vô hiệu hóa");
+                }
+                if (user.LoginInfo != null)
+                {
+                    user.LoginInfo.FailedLoginAttempts = 0;
+                    user.LoginInfo.AccountLockedUntil = null;
+                    user.LoginInfo.LastLogin = DateTime.UtcNow;
+                    await _unitOfWork.Users.UpdateAsync(user);
+                }
+            }
+
+            await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(user.Id);
+            var refreshToken = CreateNewRefreshToken(user.Id);
+            await _unitOfWork.RefreshTokens.SaveAsync(refreshToken);
+            await _unitOfWork.SaveChangesAsync();
+            await _unitOfWork.CommitAsync();
+
+            var accessToken = GenerateJwtToken(user);
+            var response = new AuthResponse
+            {
+                Id = user.Id,
+                Name = user.UserName,
+                Email = user.Email,
+                Token = accessToken,
+                RefreshToken = refreshToken.Token.ToString()
+            };
+            return ApiResponse<AuthResponse>.SuccessResponse(response, "Đăng nhập Google thành công");
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackAsync();
+            _logger.LogError(ex, "Lỗi transaction GoogleLogin");
+            return ApiResponse<AuthResponse>.ErrorResponse(500, "Lỗi server, vui lòng thử lại sau");
+        }
     }
 
     public async Task<ApiResponse<bool>> ChangePasswordAsync(string userEmail, ChangePasswordRequest request)
