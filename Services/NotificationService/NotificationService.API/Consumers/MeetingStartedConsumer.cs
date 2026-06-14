@@ -22,9 +22,6 @@ public class MeetingStartedConsumer : KafkaConsumerBase<MeetingStartedEvent>
 
     protected override async Task ProcessMessageAsync(MeetingStartedEvent message)
     {
-        if (message.AcceptedEmails == null || !message.AcceptedEmails.Any())
-            return;
-
         using var scope = _serviceProvider.CreateScope();
         var notiService = scope.ServiceProvider.GetRequiredService<INotificationService>();
         var dbContext = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
@@ -40,6 +37,14 @@ public class MeetingStartedConsumer : KafkaConsumerBase<MeetingStartedEvent>
             StartedAt = message.StartedAt,
             JoinLink = $"/meet/{message.RoomCode}"
         };
+
+        // Đẩy realtime tới mọi người đang đợi trong phòng (kể cả khách, kể cả khi
+        // không có ai được mời) — thay cho việc client polling trạng thái phòng.
+        await notiService.SendMeetingStartedToRoomAsync(message.RoomCode, payload);
+
+        // Thông báo "đã bắt đầu" (lưu DB + chuông) chỉ dành cho người được mời đã chấp nhận.
+        if (message.AcceptedEmails == null || !message.AcceptedEmails.Any())
+            return;
 
         foreach (var email in message.AcceptedEmails)
         {

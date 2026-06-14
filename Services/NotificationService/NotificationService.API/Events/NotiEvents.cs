@@ -51,3 +51,10 @@ public class InviteRespondedEvent
     public string InviteeEmail { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 }
+public class MeetingEndedEvent
+{
+    public int MeetingId { get; set; }
+    public string RoomCode { get; set; } = string.Empty;
+    public string HostEmail { get; set; } = string.Empty;
+    public DateTime EndedAt { get; set; }
+}

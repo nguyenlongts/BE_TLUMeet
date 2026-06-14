@@ -13,19 +13,34 @@ namespace NotificationService.API.Services
             _hubContext = hubContext;
          
         }
+        // Group được tạo bằng email lowercase trong NotificationHub → chuẩn hóa khi gửi để khớp.
+        private static string Norm(string email) => (email ?? string.Empty).Trim().ToLowerInvariant();
+
         public async Task SendInviteAsync(string inviteeEmail, InviteNotificationDto payload)
         {
-            await _hubContext.Clients.Group(inviteeEmail).SendAsync("ReceiveInvite", payload);
+            await _hubContext.Clients.Group(Norm(inviteeEmail)).SendAsync("ReceiveInvite", payload);
         }
 
         public async Task SendInviteResponseAsync(string hostEmail, InviteResponseDto payload)
         {
-            await _hubContext.Clients.Group(hostEmail).SendAsync("ReceiveInviteResponse", payload);
+            await _hubContext.Clients.Group(Norm(hostEmail)).SendAsync("ReceiveInviteResponse", payload);
         }
         public async Task SendMeetingStartedAsync(string recipientEmail, MeetingStartedNotificationDto payload)
         {
-            await _hubContext.Clients.Group(recipientEmail)
+            await _hubContext.Clients.Group(Norm(recipientEmail))
                 .SendAsync("MeetingStarted", payload);
+        }
+
+        public async Task SendMeetingStartedToRoomAsync(string roomCode, MeetingStartedNotificationDto payload)
+        {
+            await _hubContext.Clients.Group(NotificationHub.MeetingGroup(roomCode))
+                .SendAsync("MeetingStarted", payload);
+        }
+
+        public async Task SendMeetingEndedToRoomAsync(string roomCode, object payload)
+        {
+            await _hubContext.Clients.Group(NotificationHub.MeetingGroup(roomCode))
+                .SendAsync("MeetingEnded", payload);
         }
     }
 }

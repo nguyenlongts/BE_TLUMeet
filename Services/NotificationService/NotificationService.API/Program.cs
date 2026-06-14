@@ -30,6 +30,7 @@ builder.Services.AddDbContext<NotificationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("NotificationDatabase"));
 });
 builder.Services.AddHostedService<InviteRespondedConsumer>();
+builder.Services.AddHostedService<MeetingEndedConsumer>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {
