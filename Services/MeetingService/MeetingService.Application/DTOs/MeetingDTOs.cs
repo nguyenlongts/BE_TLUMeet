@@ -54,6 +54,15 @@ public class MeetingParticipantResponse
     public DateTime? LeftAt { get; set; }
 }
 
+public class AttendanceItemResponse
+{
+    public string DisplayName { get; set; } = string.Empty;
+    public string? UserEmail { get; set; }
+    public DateTime JoinedAt { get; set; }
+    public DateTime? LeftAt { get; set; }
+    public int DurationMinutes { get; set; }
+}
+
 public class MeetingStatusDto
 {
     public string RoomCode { get; set; } = string.Empty;

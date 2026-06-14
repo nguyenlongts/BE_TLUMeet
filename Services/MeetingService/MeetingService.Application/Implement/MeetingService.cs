@@ -248,7 +248,7 @@ public class MeetingService : IMeetingService
             {
                 MeetingId = meeting.Id,
                 RoomCode = meeting.RoomCode,
-                DisplayName = userEmail ?? guestName!,
+                DisplayName = !string.IsNullOrWhiteSpace(guestName) ? guestName! : (userEmail ?? "Khách"),
                 UserEmail = userEmail,
                 RoleId = roleId,
                 JoinToken = Guid.NewGuid().ToString()
@@ -546,5 +546,48 @@ public class MeetingService : IMeetingService
         var invites = await _unitOfWork.Invites.GetAcceptedByEmailAsync(email);
         var meetings = invites.Where(i => i.Meeting != null).Select(i => MapMeeting(i.Meeting!)).ToList();
         return ApiResponse<List<MeetingResponse>>.SuccessResponse(meetings);
+    }
+
+    public async Task<ApiResponse<List<AttendanceItemResponse>>> GetAttendanceAsync(string roomCode, string hostEmail)
+    {
+        var meeting = await _unitOfWork.Meetings.GetByRoomCodeAsync(roomCode);
+        if (meeting == null)
+            return ApiResponse<List<AttendanceItemResponse>>.ErrorResponse(404, "Phòng không tồn tại");
+        if (meeting.HostEmail != hostEmail)
+            return ApiResponse<List<AttendanceItemResponse>>.ErrorResponse(403, "Chỉ chủ phòng mới được xem điểm danh");
+
+        var participants = await _unitOfWork.Participants.GetByRoomCodeAsync(roomCode);
+
+        static string KeyOf(MeetingParticipant p) => !string.IsNullOrWhiteSpace(p.UserEmail)
+            ? p.UserEmail!.ToLowerInvariant()
+            : "guest:" + p.DisplayName;
+
+        var bestNameByKey = participants
+            .GroupBy(KeyOf)
+            .ToDictionary(g => g.Key, g =>
+            {
+                var email = g.First().UserEmail;
+                return g.Select(p => p.DisplayName)
+                    .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)
+                        && !n.Contains('@')
+                        && !string.Equals(n, email, StringComparison.OrdinalIgnoreCase))
+                    ?? g.First().DisplayName;
+            });
+
+        var report = participants
+            .OrderBy(p => p.JoinedAt)
+            .Select(p => new AttendanceItemResponse
+            {
+                DisplayName = bestNameByKey[KeyOf(p)],
+                UserEmail = p.UserEmail,
+                JoinedAt = p.JoinedAt,
+                LeftAt = p.LeftAt,
+                DurationMinutes = p.LeftAt.HasValue
+                    ? (int)Math.Round((p.LeftAt.Value - p.JoinedAt).TotalMinutes)
+                    : 0
+            })
+            .ToList();
+
+        return ApiResponse<List<AttendanceItemResponse>>.SuccessResponse(report);
     }
 }

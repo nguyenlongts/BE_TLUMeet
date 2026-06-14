@@ -141,6 +141,16 @@ public class MeetingController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("leave-beacon")]
+    public async Task<IActionResult> LeaveMeetingBeacon([FromQuery] string joinToken)
+    {
+        if (string.IsNullOrEmpty(joinToken))
+            return BadRequest();
+
+        await _meetingService.LeaveMeetingAsync(joinToken);
+        return Ok();
+    }
+
     [HttpGet("{roomCode}/participants")]
     public async Task<IActionResult> GetParticipants(string roomCode)
     {
@@ -189,6 +199,20 @@ public class MeetingController : ControllerBase
         if (!result.Success)
             return StatusCode(result.StatusCode, result);
 
+        return Ok(result);
+    }
+
+    [Authorize]
+    [HttpGet("{roomCode}/attendance")]
+    public async Task<IActionResult> GetAttendance(string roomCode)
+    {
+        var email = User.FindFirst("email")?.Value;
+        if (string.IsNullOrEmpty(email))
+            return Unauthorized();
+
+        var result = await _meetingService.GetAttendanceAsync(roomCode, email);
+        if (!result.Success)
+            return StatusCode(result.StatusCode, result);
         return Ok(result);
     }
 
