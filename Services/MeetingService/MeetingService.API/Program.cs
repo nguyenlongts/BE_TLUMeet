@@ -19,6 +19,7 @@ builder.Services.AddDbContext<MeetingDbContext>(options =>
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IMeetingService, MeetingService.Application.Implement.MeetingService>();
 builder.Services.AddHostedService<OutboxService>();
+builder.Services.AddHostedService<MeetingReminderService>();
 builder.Services.AddSingleton<IKafkaProducer, KafkaProducer>();
 
 builder.Services.AddCors(options =>

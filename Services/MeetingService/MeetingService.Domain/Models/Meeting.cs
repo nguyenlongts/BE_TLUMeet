@@ -21,6 +21,9 @@ public class Meeting
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public MeetingStatus Status { get; set; } = MeetingStatus.Scheduled;
 
+    // Đã gửi nhắc lịch trước giờ họp hay chưa (tránh gửi trùng)
+    public bool ReminderSent { get; set; } = false;
+
 
     public ICollection<MeetingParticipant> Participants { get; set; }
         = new List<MeetingParticipant>();

@@ -71,7 +71,7 @@ namespace NotificationService.API.Consumers
 
                 // Chi tiết cuộc họp (chỉ hiển thị phần có dữ liệu)
                 var scheduleHtml = message.ScheduledDateTime.HasValue
-                    ? $"<p style='margin:4px 0;'>🕒 Thời gian: <strong>{message.ScheduledDateTime.Value:HH:mm dd/MM/yyyy} (UTC)</strong></p>"
+                    ? $"<p style='margin:4px 0;'>🕒 Thời gian: <strong>{message.ScheduledDateTime.Value.AddHours(7):HH:mm dd/MM/yyyy} (GMT+7)</strong></p>"
                     : "";
                 var durationHtml = message.Duration > 0
                     ? $"<p style='margin:4px 0;'>⏱️ Thời lượng: <strong>{message.Duration} phút</strong></p>"

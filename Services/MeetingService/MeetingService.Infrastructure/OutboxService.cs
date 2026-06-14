@@ -71,6 +71,10 @@
                             var inviteRespondedEvent = System.Text.Json.JsonSerializer.Deserialize<InviteRespondedEvent>(message.Payload);
                             await producer.PublishAsync(KafkaTopics.InviteResponded, inviteRespondedEvent!, inviteRespondedEvent!.RoomCode);
                             break;
+                        case nameof(MeetingReminderEvent):
+                            var meetingReminderEvent = System.Text.Json.JsonSerializer.Deserialize<MeetingReminderEvent>(message.Payload);
+                            await producer.PublishAsync(KafkaTopics.MeetingReminder, meetingReminderEvent!, meetingReminderEvent!.RoomCode);
+                            break;
                     }
                     message.OccuredAt = DateTime.UtcNow;
                     message.ErrorMessage = null;

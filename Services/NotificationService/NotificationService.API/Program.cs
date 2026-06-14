@@ -33,6 +33,7 @@ builder.Services.AddDbContext<NotificationDbContext>(options =>
 });
 builder.Services.AddHostedService<InviteRespondedConsumer>();
 builder.Services.AddHostedService<MeetingEndedConsumer>();
+builder.Services.AddHostedService<MeetingReminderConsumer>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
 {

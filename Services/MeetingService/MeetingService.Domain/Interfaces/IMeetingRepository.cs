@@ -12,5 +12,8 @@ public interface IMeetingRepository
     Task UpdateAsync(Meeting meeting);
     Task<bool> DeleteAsync(int id);
 
+    // Cuộc họp sắp diễn ra (trong khoảng [nowUtc, windowEndUtc]) chưa gửi nhắc lịch
+    Task<List<Meeting>> GetDueForReminderAsync(DateTime nowUtc, DateTime windowEndUtc);
+
 
 }

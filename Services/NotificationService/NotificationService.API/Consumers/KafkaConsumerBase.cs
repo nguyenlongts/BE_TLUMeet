@@ -24,7 +24,9 @@ public abstract class KafkaConsumerBase<T> : BackgroundService where T : class
             {
                 BootstrapServers = _configuration["Kafka:BootstrapServers"],
                 GroupId = GroupId,
-                AutoOffsetReset = AutoOffsetReset.Latest,
+                // Earliest: nhóm consumer mới (topic vừa tạo) đọc từ đầu, tránh bỏ lỡ message đầu tiên.
+                // Nhóm đã có offset commit sẽ tiếp tục từ offset đó (auto.offset.reset chỉ áp dụng khi chưa có offset).
+                AutoOffsetReset = AutoOffsetReset.Earliest,
                 EnableAutoCommit = false
             };
             _consumer = new ConsumerBuilder<string, string>(config).Build();

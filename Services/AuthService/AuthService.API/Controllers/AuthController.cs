@@ -122,6 +122,16 @@ public class AuthController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet("users")]
+    public async Task<IActionResult> GetUsers()
+    {
+        var result = await _authService.GetUsersAsync();
+        if (!result.Success)
+            return StatusCode(result.StatusCode, result);
+        return Ok(result);
+    }
+
+    [Authorize]
     [HttpGet("me")]
     public IActionResult GetCurrentUser()
     {

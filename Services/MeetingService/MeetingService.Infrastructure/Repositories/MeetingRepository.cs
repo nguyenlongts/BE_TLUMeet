@@ -49,4 +49,14 @@
         return true;
     }
 
+    public async Task<List<Meeting>> GetDueForReminderAsync(DateTime nowUtc, DateTime windowEndUtc)
+        => await _context.Meetings
+            .Where(m => !m.ReminderSent
+                && m.ScheduledDateTime != null
+                && m.ScheduledDateTime >= nowUtc
+                && m.ScheduledDateTime <= windowEndUtc
+                && (m.Status == MeetingService.Domain.Enums.MeetingStatus.Scheduled
+                    || m.Status == MeetingService.Domain.Enums.MeetingStatus.WaitingForHost))
+            .ToListAsync();
+
 }

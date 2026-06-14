@@ -71,3 +71,15 @@ public class MeetingEndedEvent
     public string HostEmail { get; set; } = string.Empty;
     public DateTime EndedAt { get; set; }
 }
+
+public class MeetingReminderEvent
+{
+    public int MeetingId { get; set; }
+    public string RoomCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string HostEmail { get; set; } = string.Empty;
+    public DateTime ScheduledDateTime { get; set; }
+    public int Duration { get; set; }
+    public string JoinLink { get; set; } = string.Empty;
+    public List<string> Recipients { get; set; } = new();
+}

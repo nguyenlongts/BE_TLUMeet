@@ -14,4 +14,5 @@ public interface IAuthService
     Task<ApiResponse<bool>> LogoutAsync(string refreshToken);
     Task<ApiResponse<bool>> VerifyEmailAsync(VerifyEmailRequest request);
     Task<ApiResponse<bool>> ResendVerificationAsync(ResendVerificationRequest request);
+    Task<ApiResponse<List<UserListItemDto>>> GetUsersAsync();
 }

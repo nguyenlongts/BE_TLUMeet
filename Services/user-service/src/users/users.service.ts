@@ -19,6 +19,13 @@ export class UsersService {
     return this.userModel.find();
   }
 
+  // Danh sách rút gọn cho việc mời họp: chỉ user đang hoạt động, các field cần thiết
+  async findAllForInvite() {
+    return this.userModel
+      .find({ isActive: true }, 'userId name email avatarUrl')
+      .sort({ name: 1 });
+  }
+
   async createUserFromEvent(data: {
     UserId: number;
     UserName: string;

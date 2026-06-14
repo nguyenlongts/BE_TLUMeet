@@ -56,6 +56,12 @@ public class ResendVerificationRequest
 {
     public string Email { get; set; } = string.Empty;
 }
+public class UserListItemDto
+{
+    public int Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+}
 public class ApiResponse<T>
 {
     public bool Success { get; set; }

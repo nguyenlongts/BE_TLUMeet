@@ -10,5 +10,6 @@
         public const string ParticipantLeft = "participant-left-events";
         public const string MeetingInvited = "meeting-invited-events";
         public const string InviteResponded = "invite-responded-events";
+        public const string MeetingReminder = "meeting-reminder-events";
     }
 }

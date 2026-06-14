@@ -30,6 +30,12 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  // Danh sách rút gọn (id, tên, email) để chọn người mời — đặt trước route ':userId'
+  @Get('all')
+  findAllForInvite() {
+    return this.usersService.findAllForInvite();
+  }
+
   @Get(':userId')
   getProfile(@Param('userId',ParseIntPipe) userId:number){
     return this.usersService.getProfile(userId)

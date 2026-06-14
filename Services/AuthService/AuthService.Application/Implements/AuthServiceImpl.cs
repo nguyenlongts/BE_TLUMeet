@@ -703,6 +703,22 @@ public class AuthServiceImpl : IAuthService
         return ApiResponse<bool>.SuccessResponse(true, "Đã gửi lại email xác thực");
     }
 
+    public async Task<ApiResponse<List<UserListItemDto>>> GetUsersAsync()
+    {
+        var users = await _unitOfWork.Users.GetAllAsync(1, 1000);
+        var list = users
+            .Where(u => u.IsActive && (u.Role == null || u.Role.Name != "Admin"))
+            .OrderBy(u => u.UserName)
+            .Select(u => new UserListItemDto
+            {
+                Id = u.Id,
+                Name = u.UserName,
+                Email = u.Email
+            })
+            .ToList();
+        return ApiResponse<List<UserListItemDto>>.SuccessResponse(list);
+    }
+
     private bool IsValidEmail(string email)
     {
         try

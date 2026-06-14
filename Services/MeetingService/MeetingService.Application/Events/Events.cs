@@ -91,3 +91,16 @@ public class InviteRespondedEvent
     public string InviteeEmail { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
 }
+
+public class MeetingReminderEvent
+{
+    public int MeetingId { get; set; }
+    public string RoomCode { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string HostEmail { get; set; } = string.Empty;
+    public DateTime ScheduledDateTime { get; set; }
+    public int Duration { get; set; }
+    public string JoinLink { get; set; } = string.Empty;
+    // Host + những người đã chấp nhận lời mời
+    public List<string> Recipients { get; set; } = new();
+}
