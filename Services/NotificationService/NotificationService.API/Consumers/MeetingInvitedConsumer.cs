@@ -9,10 +9,12 @@ namespace NotificationService.API.Consumers
     public class MeetingInvitedConsumer : KafkaConsumerBase<MeetingInvitedEvent>
     {
         private readonly IServiceProvider _serviceProvider;
+        private readonly IConfiguration _configuration;
         public MeetingInvitedConsumer(IConfiguration configuration, ILogger<MeetingInvitedConsumer> logger, IServiceProvider serviceProvider) : base(configuration, logger)
         {
 
             _serviceProvider = serviceProvider;
+            _configuration = configuration;
         }
 
         protected override string Topic => "meeting-invited-events";
@@ -53,6 +55,47 @@ namespace NotificationService.API.Consumers
             await dbContext.SaveChangesAsync();
 
             await notiService.SendInviteAsync(message.InviteeEmail, inviteDTO);
+
+            // Gửi email mời tham gia (kèm link vào phòng) — để người được mời biết dù không online
+            try
+            {
+                var emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
+                var fe = _configuration["FE:BaseUrl"];
+                var joinLink = string.IsNullOrWhiteSpace(fe)
+                    ? message.JoinLink
+                    : $"{fe.TrimEnd('/')}/meet/{message.RoomCode}";
+                var meetingTitle = string.IsNullOrWhiteSpace(message.Title) ? "Cuộc họp" : message.Title;
+
+                var emailBody = $@"
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
+                        <h2 style='color: #2563eb;'>Bạn được mời tham gia cuộc họp</h2>
+                        <p><strong>{message.HostName}</strong> đã mời bạn tham gia cuộc họp <strong>{meetingTitle}</strong> trên TLUMeet.</p>
+                        <div style='background:#f3f4f6;border-radius:8px;padding:16px;margin:16px 0;'>
+                            <p style='margin:4px 0;'>Mã phòng: <strong>{message.RoomCode}</strong></p>
+                        </div>
+                        <p style='margin: 28px 0;'>
+                            <a href='{joinLink}'
+                               style='background-color:#2563eb;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;'>
+                                Tham gia cuộc họp
+                            </a>
+                        </p>
+                        <p>Bạn cũng có thể chấp nhận hoặc từ chối lời mời trong phần thông báo trên TLUMeet.</p>
+                        <hr style='margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;'>
+                        <p style='color:#6b7280;font-size:12px;'>
+                            Nếu nút không hoạt động, copy link sau vào trình duyệt:<br>{joinLink}
+                        </p>
+                    </div>";
+
+                await emailService.SendEmailAsync(
+                    message.InviteeEmail,
+                    $"Lời mời tham gia cuộc họp: {meetingTitle}",
+                    emailBody,
+                    "MeetingInvite");
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Gửi email mời thất bại cho {Email}", message.InviteeEmail);
+            }
         }
     }
 }

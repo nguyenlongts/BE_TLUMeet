@@ -326,6 +326,22 @@ public class AuthServiceImpl : IAuthService
 
             await _unitOfWork.Users.UpdateAsync(user);
             await _unitOfWork.RefreshTokens.RevokeAllByUserIdAsync(user.Id);
+
+            // Gửi sự kiện đổi mật khẩu để NotificationService gửi email cảnh báo bảo mật
+            var outbox = new OutboxMessage
+            {
+                EventType = nameof(PasswordChangedEvent),
+                Payload = JsonSerializer.Serialize(new PasswordChangedEvent
+                {
+                    UserId = user.Id,
+                    Email = user.Email,
+                    ChangedAt = DateTime.UtcNow
+                }),
+                CreatedAt = DateTime.UtcNow,
+                ErrorMessage = null
+            };
+            await _unitOfWork.OutboxMessages.AddAsync(outbox);
+
             await _unitOfWork.SaveChangesAsync();
             await _unitOfWork.CommitAsync();
         }

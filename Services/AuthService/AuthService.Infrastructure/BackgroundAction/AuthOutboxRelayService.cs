@@ -59,6 +59,11 @@ namespace AuthService.Infrastructure.BackgroundAction
 
                             await producer.PublishAsync(KafkaTopics.PasswordResetRequested, passwordResetRequestedEvent!, passwordResetRequestedEvent!.Email);
                             break;
+                        case nameof(PasswordChangedEvent):
+                            var passwordChangedEvent = System.Text.Json.JsonSerializer.Deserialize<PasswordChangedEvent>(message.Payload);
+
+                            await producer.PublishAsync(KafkaTopics.PasswordChanged, passwordChangedEvent!, passwordChangedEvent!.Email);
+                            break;
                 }
                     message.OccuredAt = DateTime.UtcNow;
                 }

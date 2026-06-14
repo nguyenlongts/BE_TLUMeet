@@ -19,6 +19,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddHostedService<WelcomeEmailConsumer>();
 builder.Services.AddHostedService<PasswordResetConsumer>();
+builder.Services.AddHostedService<PasswordChangedConsumer>();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<INotificationService, NotiService>();
 builder.Services.AddHostedService<MeetingInvitedConsumer>();

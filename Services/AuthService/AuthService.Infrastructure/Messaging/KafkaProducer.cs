@@ -62,4 +62,5 @@ public static class KafkaTopics
 {
     public const string UserRegistered = "user-registered-events";
     public const string PasswordResetRequested = "password-reset-events";
+    public const string PasswordChanged = "password-changed-events";
 }
