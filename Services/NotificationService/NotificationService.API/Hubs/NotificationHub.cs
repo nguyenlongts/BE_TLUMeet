@@ -39,7 +39,7 @@ namespace NotificationService.API.Hubs
         // Nhóm theo phòng họp để đẩy sự kiện vòng đời (bắt đầu/kết thúc) realtime,
         // thay cho việc client polling trạng thái. Dùng được cho cả khách (không JWT)
         // vì tư cách thành viên phòng được xác định bằng roomCode.
-        public static string MeetingGroup(string roomCode) => $"meeting:{roomCode}";
+        public static string MeetingGroup(string roomCode) => $"meeting:{(roomCode ?? string.Empty).Trim().ToLowerInvariant()}";
 
         public Task JoinMeetingGroup(string roomCode) =>
             Groups.AddToGroupAsync(Context.ConnectionId, MeetingGroup(roomCode));
